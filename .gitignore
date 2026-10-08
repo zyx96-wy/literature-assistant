@@ -17,6 +17,9 @@ chroma_db_old/
 # ---- 原始文献 PDF（版权问题，不入库）----
 *.pdf
 
+# ---- PRD 历史版本（本地留存，不上传）----
+docs/prd-archive/
+
 # ---- 备份与临时文件 ----
 *.bak
 *.log

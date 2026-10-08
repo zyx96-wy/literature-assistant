@@ -1,0 +1,22 @@
+[
+  {"qid": "q01", "question": "AI 写作对传统文学带来的挑战，作者归纳为哪几个问题？", "doc_id": "lit_d5e395fd", "pid": 1, "note": "谁在写作与写什么"},
+  {"qid": "q02", "question": "作者认为文学创作主体面临的三重冲击是什么？", "doc_id": "lit_d5e395fd", "pid": 3, "note": "去精英化、主体下沉、人机共创"},
+  {"qid": "q03", "question": "仿真社会这个概念是谁提出的？", "doc_id": "lit_d5e395fd", "pid": 3, "note": "鲍德里亚"},
+  {"qid": "q04", "question": "人类学者项飙提出的附近的消失指的是什么现象？", "doc_id": "lit_d5e395fd", "pid": 4, "note": "中介地带塌陷"},
+  {"qid": "q05", "question": "This paper proposes a framework for what kind of text steganography?", "doc_id": "lit_e05fbe33", "pid": 1, "note": "semantic controllable long-text"},
+  {"qid": "q06", "question": "What two components are integrated in the proposed framework?", "doc_id": "lit_e05fbe33", "pid": 1, "note": "prompt engineering + knowledge graph"},
+  {"qid": "q07", "question": "Which LLM is used as the text generator in the experiments?", "doc_id": "lit_e05fbe33", "pid": 2, "note": "Llama 7B Chat"},
+  {"qid": "q08", "question": "What are the two encoding methods employed in this paper?", "doc_id": "lit_e05fbe33", "pid": 3, "note": "Huffman + arithmetic"},
+  {"qid": "q09", "question": "What does SentRev stand for in this paper?", "doc_id": "lit_64c06f6c", "pid": 4, "note": "Sentence-level Revision"},
+  {"qid": "q10", "question": "Which corpus is used to assess LLM performance for non-native English speakers?", "doc_id": "lit_64c06f6c", "pid": 6, "note": "TCNAEC"},
+  {"qid": "q11", "question": "What is the key method proposed in the third experiment of this paper?", "doc_id": "lit_64c06f6c", "pid": 14, "note": "Academic Phrasebank"},
+  {"qid": "q12", "question": "How many countries volunteers were recruited for building the corpus?", "doc_id": "lit_64c06f6c", "pid": 7, "note": "10 countries"},
+  {"qid": "q13", "question": "AI 写作技术给学术期刊带来的挑战主要体现在哪几个方面？", "doc_id": "lit_647356d7", "pid": 1, "note": "质量、著作权、不端、伦理"},
+  {"qid": "q14", "question": "学术论文应用 AI 技术潜在的风险中，什么叫算法黑匣子？", "doc_id": "lit_647356d7", "pid": 4, "note": "科学研究失范"},
+  {"qid": "q15", "question": "学术不端行为包括哪些？", "doc_id": "lit_647356d7", "pid": 5, "note": "抄袭等"},
+  {"qid": "q16", "question": "学术期刊应对 AI 写作的对策有哪些？", "doc_id": "lit_647356d7", "pid": 6, "note": "五项对策"},
+  {"qid": "q17", "question": "What is the main research design used in this study?", "doc_id": "lit_a8ffb983", "pid": 1, "note": "pretest-posttest"},
+  {"qid": "q18", "question": "How many EFL learners participated in the study?", "doc_id": "lit_a8ffb983", "pid": 1, "note": "187"},
+  {"qid": "q19", "question": "Which AWE tool was used in the experiments?", "doc_id": "lit_a8ffb983", "pid": 7, "note": "Grammarly Premium"},
+  {"qid": "q20", "question": "How many experimental groups were there, and what feedback did each receive?", "doc_id": "lit_a8ffb983", "pid": 7, "note": "4 groups"}
+]

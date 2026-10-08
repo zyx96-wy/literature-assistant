@@ -1,149 +1,127 @@
-# literature-assistant
+# literature-assistant · 文献管理助手
 
-> 对话驱动的私有知识库 + 文献笔记助手
+> 对话驱动的私有文献库 + 文献笔记助手。上传 PDF 后，用自然语言完成**速读、对比、问答、综述、笔记、复现**，每一句结论都能点回原文段落。
 
-上传文献后，用自然语言完成**检索、速读、对比、问答、翻译、笔记、综述、复现**等任务。所有数据持久化在本地 JSON 文件中，跨会话可用，零外部服务依赖。
+本地优先：文献正文、向量库、笔记全部存在本机 SQLite / Chroma 里，只有调用大模型时才联网。
 
-## 一句话定位
+![文献助手首页](assets/文献助手首页.png)
 
-> 对话驱动的私有知识库 + 文献笔记助手，让每一次阅读都变成可复用的知识资产。
+## 技术栈
 
-## 参考组合
-
-> Zotero 的数据结构 + Elicit 的流程透明度 + Consensus 的共识度量输出 + 笔记可沉淀。
-
-## 不是什么
-
-- 不是通用聊天机器人
-- 不是纯文献管理器
-- 不是纯文献发现工具
-- 不做抄袭检测、全文改写、账号体系
-
-## 特性
-
-- **文献入库与索引**：支持 txt / md / pdf / arXiv 链接，三重去重，自动识别章节结构
-- **文献速读**：11 字段速读卡（主旨 / 核心方法 / 结论 / 局限性 / 金句等），带来源锚点
-- **深解析**：11 字段结构化 + 逐字溯源校验，校验不过拒绝入库
-- **智能检索**：TF-IDF 向量检索，支持模糊检索、单篇问答、跨文献问答、多篇定向
-- **对比分析**：多篇文献多维度对比，生成带相关性颜色标注的 HTML 表格
-- **综述生成**：Markdown-lite 正文 + 参考文献 JSON → 带引用标注 [1] 的 HTML/Markdown 报告
-- **综述引用升级**：引用密度、争议标注、来源可信度分级、证据缺口提示
-- **笔记与划线**：句子级划线 + 段落级笔记 + 版本链 + 关联笔记 + 三联对照
-- **知识库**：知识单元（论断 + 来源）+ 收藏按钮 + 相似问题优先
-- **专题 / 项目**：总库超集，项目子集，读写一体
-- **阅读时间记忆**：读到哪 + 继续阅读 + 停留时长
-- **翻译**：段落级翻译 + 术语表一致 + 核心词汇 + API 自动
-- **复现模式**：从深解析抽复现清单，未提及如实标注
-- **模型卡片与术语扩展**：查词弹窗 + 内置公开库 + 用户导入库
-- **设置页与用户体系**：本地多用户标识 + 数据隔离
-- **纯标准库**：核心功能零依赖（仅解析 PDF 时需要 `pypdf`）
+| 层 | 选型 |
+| --- | --- |
+| 后端 | FastAPI + Uvicorn |
+| 存储 | SQLite（`backend/data/app.db`）+ Chroma 向量库（`chroma_db/`） |
+| 大模型 | 阿里云百炼 DashScope：`qwen-turbo`（生成）+ `text-embedding-v2`（向量） |
+| PDF 解析 | PyMuPDF（按坐标分栏，双栏论文不串行） |
+| 前端 | 单文件 `demo/index.html`，原生 JS，无需打包 |
 
 ## 快速开始
 
 ```bash
-# 1. 安装依赖
+# 1. 安装依赖（Python 3.10+）
 pip install -r requirements.txt
 
-# 2. 入库一篇文献
-python scripts/knowledge_base.py add --file your_paper.pdf --authors "张三" --year 2026
+# 2. 配置 API Key
+cp .env.example .env
+#   编辑 .env，填入 DASHSCOPE_API_KEY=sk-你的key
 
-# 3. 检索
-python scripts/knowledge_base.py search "检索增强生成"
+# 3. 启动后端
+python run.py
+#   健康检查：http://127.0.0.1:5000/api/health
+#   接口文档：http://127.0.0.1:5000/docs
 
-# 4. 看看库里有什么
-python scripts/knowledge_base.py list
+# 4. 打开前端
+#   直接双击 demo/index.html 即可
 ```
 
-更多命令见 [附录 B：命令速查](./docs/appendix-b-commands.md)。
+前端会自动探测 `5000 → 5001 → 5057` 上的后端；连不上时页面顶部会出现提示条，此时展示的是离线示例数据。Windows 下若 5000 端口被占，可双击 `restart_backend.bat`。
+
+## 核心机制：两套分段严格分离
+
+这是整个项目最关键的设计，改动时不要混用：
+
+| 用途 | 函数 | 规则 | 服务于 |
+| --- | --- | --- | --- |
+| 检索 | `split_for_rag` | 500 字、重叠 50、允许断句 | 向量召回、问答 |
+| 阅读 | `split_for_reading` | ≤700 字、只在句末切、不重叠 | 阅读页 `¶N` 锚点、溯源跳转 |
+
+阅读分段还会还原行末连字符与 PDF 连字（`ﬁ ﬂ ﬀ`），否则大模型摘的原句永远匹配不上正文，溯源和高亮会失效。
+
+## 功能
+
+- **文献入库**：PDF 上传、批量上传、按内容去重、软删除与回收站
+- **速读 / 深解析**：11 字段结构化卡片（主旨、方法、结论、局限性、金句等），逐句溯源校验，校验不过拒绝入库
+- **智能检索问答**：单篇问答、跨文献问答、查询改写，答案带来源锚点
+- **对比分析**：2~6 篇多维度对比表，每格可跳回原文，并生成 200~400 字总结
+- **综述生成**：Markdown-lite 正文 + 参考文献，带 `[1]` 引用标注，支持引用密度与争议标注
+- **笔记与划线**：段落级笔记 + 版本链 + 关联笔记，可导出 Markdown
+- **知识库**：从笔记收藏知识单元，保留 `source_doc_id` + `source_pid` 可跳回原文
+- **标签体系**：独立 `tags` 表，支持颜色、`topic` / `status` 两类；`status` 互斥（已读 ⇄ 未读）；全局改名与删除
+- **项目 / 专题**：总库超集、项目子集，项目名不重复
+
+溯源失败会**标红显示**，缺口如实汇总，不编造内容。
 
 ## 目录结构
 
 ```
 literature-assistant/
-├── README.md
-├── PRD.md                       # 产品需求文档（长文档）
-├── SKILL.md                     # Agent 执行说明书
-├── LICENSE
+├── run.py                  # 统一启动入口（检查 .env 与依赖后拉起 FastAPI）
+├── restart_backend.bat     # Windows 重启脚本（5000 被占自动换 5001）
 ├── requirements.txt
-├── docs/                        # PRD 分章节（以后拆）
-├── scripts/
-│   ├── common.py
-│   ├── knowledge_base.py
-│   ├── note_manager.py
-│   ├── comparison_table.py
-│   └── generate_reports.py
-├── examples/
-├── tests/
-├── data/                        # 运行时数据
-│   ├── users/                   # 用户目录
-│   ├── literature_meta/
-│   ├── note_snapshots/
-│   ├── qa_history.json
-│   ├── qa_knowledge.json
-│   └── ...
-└── outputs/
+├── .env.example            # 复制为 .env 后填 Key
+├── PRD.md                  # 产品需求文档（主文档）
+├── LICENSE                 # MIT
+├── backend/
+│   ├── main.py             # FastAPI 入口
+│   ├── api.py              # 44 个接口
+│   ├── database.py         # SQLite 建表与数据访问
+│   ├── pdf_parser.py       # PDF → 行列表（分栏、还原连字）
+│   ├── deep_parse.py       # 调用大模型做深解析
+│   ├── note_manager.py     # 笔记与划线
+│   ├── resegment.py        # 重跑阅读分段
+│   └── redeep.py           # 重跑深解析并重灌向量
+├── core/
+│   ├── vector_store.py     # Chroma 向量库读写
+│   ├── rag_chain.py        # 检索与查询改写
+│   └── document_loader.py
+├── config/settings.py      # 路径与模型配置
+├── demo/index.html         # 单文件前端
+├── docs/                   # PRD 分章节附录 A~I + 设计决策
+├── eval/                   # 评测脚本（检索 / 场景 / 竞品对比）
+└── experiments/            # 参数实验（如 top-k 对比）
 ```
 
-## 文档
+## 接口
 
-- [PRD](./PRD.md) — 产品需求文档
-- [SKILL](./SKILL.md) — Agent 执行说明书
-- [附录 A：数据结构](./docs/appendix-a-data-structure.md)
-- [附录 B：命令速查](./docs/appendix-b-commands.md)
-- [附录 C：验收清单](./docs/appendix-c-acceptance.md)
-- [附录 D：竞品详细对比](./docs/appendix-d-competitors.md)
-- [附录 E：工程实现文档](./docs/appendix-e-engineering-doc.md)
+共 44 个，前缀均为 `/api`，启动后可在 `http://127.0.0.1:5000/docs` 查看完整列表：
 
-## 数据存储
+- 文献：`/docs`、`/upload`、`/docs/{id}/tags`、软删除 / 恢复 / 彻底删除
+- 标签：`/tags`（增删改查）、`/tags/{id}/docs`
+- 问答：`/ask`、`/messages`
+- 项目：`/projects`、`/projects/{id}/docs`
+- 笔记：`/notes`、`/notes/export/markdown`
+- 综述：`/reviews`
+- 知识库：`/knowledge`
+- 对比：`/compare`、`/compare/summarize`
 
-文献元数据示例：
+## 维护工具
 
-```json
-{
-  "doc_id": "lit_001",
-  "title": "基于大语言模型的临床诊断辅助系统研究",
-  "authors": ["张明等"],
-  "year": 2026,
-  "tags": ["方法", "实验"],
-  "deleted": false,
-  "chunks": [
-    {"pid": 1, "section": "2. 方法", "text": "该方法采用RAG机制..."}
-  ],
-  "notes": [
-    {
-      "note_id": "note_001",
-      "pid": 3,
-      "versions": [
-        {"version": "v1", "created_at": "...", "content": "可迁移到我的实验", "status": "active"}
-      ],
-      "current_version": "v1",
-      "status": "active"
-    }
-  ]
-}
-```
-
-存储规则：
-- 删除文献采用**软删除**，笔记 / 问答 / 划线全保留，可 `restore`
-- 彻底删除需二次确认
-- 笔记按版本链存储，编辑追加新版本
-- 数据根目录可用环境变量 `KA_HOME` 重定向
-
-## 运行测试
+改动解析或解析提示词后，需要重跑已有文献：
 
 ```bash
-python tests/test_agent.py
+python backend/resegment.py           # 只重跑阅读分段
+python backend/redeep.py              # 重跑深解析 + 重灌向量
+python backend/redeep.py --no-vectors # 只重跑解析，不动向量库
 ```
 
 ## 边界说明
 
-- 只检索用户已上传的文献，不做联网搜索
-- 笔记定位到段落级（不做到字符级）
+- 只检索用户已上传的文献，不联网搜文献
+- 笔记定位到段落级（`¶N`），不做字符级
 - 翻译按段落触发，不做全文自动翻译
-- 不做抄袭检测 / 全文改写
-- 不做真登录 / 云端同步
-- 复现模式只抽取，不补全
-- 外部知识库不主动联网
+- 复现模式只抽取论文提及的内容，缺失处如实标注，不补全
+- 本地部署，不做账号体系与云端同步
 
 ## License
 

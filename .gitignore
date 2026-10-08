@@ -20,6 +20,15 @@ chroma_db_old/
 # ---- PRD 历史版本（本地留存，不上传）----
 docs/prd-archive/
 
+# ---- 本地原型与调试脚本（本地留存，不上传）----
+archive/
+app.py
+check.py
+check_db.py
+test_cost.py
+test_eval.py
+demo_问题诊断.md
+
 # ---- 备份与临时文件 ----
 *.bak
 *.log

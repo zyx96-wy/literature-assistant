@@ -1,0 +1,22 @@
+# ---- Web 服务 ----
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9      # /api/upload 接收文件必需
+pydantic>=2.6
+
+# ---- LLM / Embedding（阿里云百炼 DashScope）----
+dashscope>=1.14.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+langchain-chroma>=0.1.0
+langchain-text-splitters>=0.0.1
+chromadb>=0.4.0
+
+# ---- PDF 解析 ----
+pymupdf>=1.24.0              # import 名是 fitz
+
+# ---- 配置 ----
+python-dotenv>=1.0.0
+
+# 注：Python 版本要求 3.10+（代码用了 list[str] / str | None 语法）

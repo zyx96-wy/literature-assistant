@@ -1,0 +1,3740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>科研总助 Agent · Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #1f2329; font-size: 14px; line-height: 1.6; }
+  .topbar { background: #fff; border-bottom: 1px solid #e5e6eb; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar .logo { font-weight: 600; font-size: 16px; }
+  .topbar .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+  .topbar .nav button { background: none; border: 1px solid #e5e6eb; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .topbar .nav button.active { background: #1f2329; color: #fff; border-color: #1f2329; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .workbench, .project { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: calc(100vh - 100px); }
+  .sidebar { background: #fff; border-radius: 10px; padding: 16px; overflow-y: auto; }
+  .sidebar .section { margin-bottom: 20px; }
+  .sidebar .section-title { font-size: 12px; color: #86909c; margin-bottom: 8px; font-weight: 600; }
+  .sidebar .entry { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .sidebar .entry:hover { background: #f2f3f5; }
+  .sidebar .entry.active { background: #e8f3ff; color: #165dff; }
+  .doc-card { background: #f7f8fa; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: grab; border: 1px solid transparent; }
+  .doc-card:hover { border-color: #165dff; }
+  .doc-card.deleted { opacity: .45; }
+  .doc-card .title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .doc-card .meta { font-size: 12px; color: #86909c; }
+  .doc-card .progress { font-size: 12px; color: #165dff; margin-top: 4px; }
+  .doc-card .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .doc-card .actions button { font-size: 12px; padding: 2px 8px; border: 1px solid #e5e6eb; background: #fff; border-radius: 4px; cursor: pointer; }
+  .chat { background: #fff; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; overflow: hidden; }
+  .chat .chat-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .chat .chat-title button { font-size: 12px; padding: 4px 10px; border: 1px solid #e5e6eb; background: #fff; border-radius: 6px; cursor: pointer; }
+  .chat .messages { flex: 1; overflow-y: auto; margin-bottom: 12px; }
+  .chat .msg { margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; }
+  .chat .msg.q { background: #f2f3f5; }
+  .chat .msg.a { background: #f7f8fa; border-left: 3px solid #165dff; }
+  .chat .msg .role { font-size: 12px; color: #86909c; margin-bottom: 4px; }
+  .chat .msg .source { font-size: 12px; color: #165dff; margin-top: 8px; cursor: pointer; display: inline-block; margin-right: 8px; }
+  .chat .msg .source:hover { text-decoration: underline; }
+  .chat .msg .kb-badge { display: inline-block; background: #fff7e8; color: #d25f00; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px; }
+  .chat .msg .actions { margin-top: 8px; display: flex; gap: 8px; }
+  .chat .msg .actions button { font-size: 12px; padding: 3px 10px; border: 1px solid #e5e6eb; background: #fff; border-radius: 4px; cursor: pointer; }
+  .chat .msg .actions button:hover { background: #f2f3f5; }
+  .chat .input-bar { display: flex; gap: 8px; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; }
+  .chat .input-bar input { flex: 1; border: none; outline: none; font-size: 14px; }
+  .chat .input-bar button { background: #165dff; color: #fff; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .chat .dragged-docs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chat .dragged-docs .tag { background: #e8f3ff; color: #165dff; font-size: 12px; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+  .banner { background: #fff7e8; color: #d25f00; font-size: 12px; padding: 6px 12px; border-radius: 6px; margin-bottom: 10px; }
+  .banner.info { background: #e8f3ff; color: #165dff; }
+  .reader { display: grid; grid-template-columns: 200px 1fr 300px; gap: 16px; }
+  .reader .toc { background: #fff; border-radius: 10px; padding: 16px; position: sticky; top: 80px; height: fit-content; }
+  .reader .toc .toc-item { padding: 6px 8px; font-size: 13px; color: #4e5969; cursor: pointer; border-radius: 4px; }
+  .reader .toc .toc-item:hover { background: #f2f3f5; }
+  .reader .content { background: #fff; border-radius: 10px; padding: 24px; }
+  .reader .para { margin-bottom: 20px; padding: 16px; border-radius: 8px; position: relative; transition: background .2s; }
+  .reader .para:hover { background: #fafbfc; }
+  .reader .para .pid { font-size: 12px; color: #86909c; margin-bottom: 6px; }
+  .reader .para .text { font-size: 15px; line-height: 1.8; user-select: text; }
+  .reader .para .translation { font-size: 13px; color: #86909c; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e6eb; }
+  .reader .para .para-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .reader .para .para-actions button { font-size: 12px; padding: 3px 10px; border: 1px solid #e5e6eb; background: #fff; border-radius: 4px; cursor: pointer; }
+  mark { background: #fde68a; padding: 0 2px; border-radius: 3px; }
+  .notes-panel { background: #fff; border-radius: 10px; padding: 16px; }
+  .note-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 13px; cursor: pointer; }
+  .note-item .time { font-size: 11px; color: #86909c; margin-top: 4px; }
+  .note-item .evol { font-size: 12px; border-left: 2px solid #165dff; padding-left: 8px; margin-top: 8px; display: none; }
+  .note-item.open .evol { display: block; }
+  .note-item .evol hr { border: none; border-top: 1px dashed #e5e6eb; margin: 6px 0; }
+  .note-item .note-acts { margin-top: 6px; display: flex; gap: 6px; }
+  .note-item .note-acts button { font-size: 11px; padding: 2px 8px; border: 1px solid #e5e6eb; background: #fff; border-radius: 4px; cursor: pointer; }
+  .floating-bar { position: absolute; background: #1f2329; color: #fff; border-radius: 6px; padding: 6px 10px; display: none; gap: 8px; font-size: 13px; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+  .floating-bar button { background: none; border: none; color: #fff; cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
+  .floating-bar button:hover { background: rgba(255,255,255,.15); }
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 200; }
+  .modal-mask.active { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 20px; width: 460px; max-width: 92%; max-height: 82vh; overflow: auto; }
+  .modal .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .modal .card { background: #f7f8fa; border-radius: 8px; padding: 12px 14px; margin: 12px 0; font-size: 13px; }
+  .modal .card .card-name { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .modal .card .card-row { margin-bottom: 4px; color: #4e5969; }
+  .modal .card .card-row b { color: #1f2329; }
+  .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .modal .modal-actions button { padding: 6px 14px; border-radius: 6px; border: 1px solid #e5e6eb; background: #fff; cursor: pointer; font-size: 13px; }
+  .modal .modal-actions button.primary { background: #165dff; color: #fff; border-color: #165dff; }
+  .radio-row { padding: 10px 12px; border: 1px solid #e5e6eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; }
+  .radio-row.sel { border-color: #165dff; background: #e8f3ff; }
+  .radio-row .desc { font-size: 12px; color: #86909c; }
+  textarea, input[type=text], select { width: 100%; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; font-size: 13px; margin: 6px 0; font-family: inherit; }
+  .lib-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .lib-item:hover { background: #f2f3f5; }
+  .add-doc-btn { width: 100%; padding: 8px; background: #f2f3f5; border: 1px dashed #c9cdd4; border-radius: 6px; cursor: pointer; font-size: 13px; color: #4e5969; margin-bottom: 10px; }
+  .add-doc-btn:hover { background: #e8f3ff; border-color: #165dff; color: #165dff; }
+  .plain { background: #fff; border-radius: 10px; padding: 24px; max-width: 900px; margin: 0 auto; }
+  .plain h2 { font-size: 18px; margin-bottom: 4px; }
+  .plain .subtitle { font-size: 13px; color: #86909c; margin-bottom: 20px; }
+  .field { border-bottom: 1px solid #f2f3f5; padding: 14px 0; }
+  .field:last-child { border-bottom: none; }
+  .field .field-name { font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 6px; }
+  .field .field-value { font-size: 14px; line-height: 1.7; }
+  .field .field-source { font-size: 12px; color: #165dff; margin-top: 6px; cursor: pointer; }
+  .field.na .field-value { color: #c9cdd4; }
+  /* 正文中的引用标号 [1]：可点，跳到阅读页并高亮原文 */
+  sup.cite { color: #165dff; font-size: 11px; cursor: pointer; margin-left: 3px; padding: 0 2px; }
+  sup.cite:hover { background: #e8f3ff; border-radius: 3px; }
+  sup.cite.bad { color: #f53f3f; }
+  /* 末尾「引用与溯源」区 */
+  .cites { margin-top: 20px; border-top: 2px solid #f2f3f5; padding-top: 14px; }
+  .cites-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
+  .cite-item { border-left: 3px solid #e5e6eb; padding: 8px 12px; margin-bottom: 8px; cursor: pointer; border-radius: 0 6px 6px 0; background: #fafbfc; }
+  .cite-item:hover { background: #f2f3f5; border-left-color: #165dff; }
+  .cite-item.bad { border-left-color: #f53f3f; }
+  .cite-item .cite-n { color: #165dff; font-weight: 600; font-size: 12px; }
+  .cite-item.bad .cite-n { color: #f53f3f; }
+  .cite-item .cite-key { font-size: 12px; font-weight: 600; color: #4e5969; margin-left: 6px; }
+  .cite-item .cite-loc { font-size: 12px; color: #86909c; margin-left: 6px; }
+  .cite-item .cite-text { font-size: 12px; color: #4e5969; line-height: 1.6; margin-top: 4px; }
+  .cite-item .cite-warn { font-size: 11px; color: #f53f3f; margin-top: 4px; }
+  /* 阅读页里被溯源命中的原文 */
+  mark.quote-hit { background: #fff1a8; color: inherit; padding: 1px 0; border-bottom: 2px solid #ffb400; }
+  .kb-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+  .kb-item .claim { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .kb-item .source { font-size: 12px; color: #165dff; cursor: pointer; }
+  .kb-item .meta { font-size: 12px; color: #86909c; margin-top: 6px; }
+  .settings .group { margin-bottom: 24px; }
+  .settings .group-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f2f3f5; }
+  .settings .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; align-items: center; }
+  .settings .row .label { color: #4e5969; }
+  .settings .row button { font-size: 12px; padding: 3px 10px; border: 1px solid #e5e6eb; background: #fff; border-radius: 4px; cursor: pointer; }
+  .rev-point { border-left: 3px solid #165dff; padding: 10px 14px; margin: 12px 0; background: #f7f8fa; border-radius: 0 8px 8px 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; margin-right: 6px; }
+  .tag.deny { background: #ffece8; color: #f53f3f; }
+  .tag.weak { background: #fff7e8; color: #d25f00; }
+  .tag.ok { background: #e8ffea; color: #00b42a; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  table.cmp th, table.cmp td { border: 1px solid #e5e6eb; padding: 8px 12px; text-align: left; }
+  table.cmp th { background: #f7f8fa; }
+  .stat-bar { display: flex; gap: 16px; font-size: 13px; color: #4e5969; margin-bottom: 16px; }
+  .stat-bar b { color: #165dff; }
+  /* 通用返回键 */
+  .back { font-size: 13px; color: #4e5969; cursor: pointer; }
+  .back:hover { color: #165dff; }
+
+  .reader-wrapper {
+  padding: 20px 24px;
+}
+
+  /* 阅读页顶部栏 */
+  .reader-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 16px;
+  position: sticky;
+  top: 70px;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+  .reader-top .left { display: flex; align-items: center; gap: 12px; }
+  .reader-top .back { font-size: 13px; color: #4e5969; cursor: pointer; }
+  .reader-top .back:hover { color: #165dff; }
+  .reader-top .title { font-weight: 600; font-size: 14px; }
+  .reader-top .right { display: flex; gap: 8px; }
+  .reader-top .right button { font-size: 12px; padding: 4px 12px; border: 1px solid #e5e6eb; background: #fff; border-radius: 6px; cursor: pointer; }
+  .reader-top .right button:hover { background: #f2f3f5; }
+  /* 客服球球 */
+  .chat-ball { position: fixed; right: 30px; bottom: 30px; width: 56px; height: 56px; border-radius: 50%; background: #165dff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; box-shadow: 0 6px 16px rgba(22,93,255,.4); z-index: 150; }
+  .chat-ball:hover { background: #0e42d2; }
+  .chat-ball-panel { position: fixed; right: 30px; bottom: 100px; width: 360px; height: 480px; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.15); display: none; flex-direction: column; z-index: 150; }
+  .chat-ball-panel.active { display: flex; }
+  .chat-ball-panel .cb-title { padding: 12px 16px; border-bottom: 1px solid #f2f3f5; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .chat-ball-panel .cb-title .close { cursor: pointer; color: #86909c; }
+  .chat-ball-panel .cb-msgs { flex: 1; overflow-y: auto; padding: 12px 16px; font-size: 13px; }
+  .chat-ball-panel .cb-msgs .msg { margin-bottom: 12px; padding: 8px 10px; border-radius: 8px; }
+  .chat-ball-panel .cb-msgs .msg.q { background: #f2f3f5; }
+  .chat-ball-panel .cb-msgs .msg.a { background: #f7f8fa; border-left: 3px solid #165dff; }
+  .chat-ball-panel .cb-msgs .source { font-size: 11px; color: #165dff; margin-top: 4px; }
+  .chat-ball-panel .cb-input { padding: 10px 12px; border-top: 1px solid #f2f3f5; display: flex; gap: 6px; }
+  .chat-ball-panel .cb-input input { flex: 1; border: 1px solid #e5e6eb; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; }
+  .chat-ball-panel .cb-input button { background: #165dff; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">🧠 科研总助 Agent · Demo</div>
+  <div class="nav">
+    <button data-page="workbench" class="active">工作台</button>
+    <button data-page="notes">笔记总览</button>
+    <button data-page="review">综述</button>
+    <button data-page="project">项目页</button>
+    <button data-page="knowledge">知识库</button>
+    <button data-page="settings">设置</button>
+  </div>
+</div>
+
+<script>
+// ===== 全局变量（已移到顶部，修 activeTagFilter 声明位置） =====
+let activeTagFilter = '';
+let API_BASE = 'http://127.0.0.1:5000';
+const DB = {
+  docs: [],   // ← 改成空数组
+  notes: [],
+  knowledge: [],
+  reviews: [],
+  tags: [],        // 全库标签（id/name/kind/color/doc_count），由 /api/tags 加载
+  currentProject: null,
+  // 项目由 /api/projects 持久化加载（PRD 9.20：总库是超集，项目是子集）
+  projects: {}
+};
+let BACKEND_STALE = false;   // 后端跑的是旧代码（/api/tags 404）时置 true，前端据此提示
+// 后端端口候选：按顺序探测，取第一个「有 /api/tags」的。
+// 这样即使 5000 上挂着一个杀不掉的旧进程，只要别处有新后端，页面也能自己接上。
+const API_PORTS = [5000, 5001, 5057];
+const activeDocs = () => DB.docs.filter(d=>!d.deleted);
+const docById = id => DB.docs.find(d=>d.id===id);
+// 标签可能来自后端（对象 {id,name,kind,color}）或离线示例（字符串），统一取值
+const tagNameOf = t => (typeof t === 'string') ? t : ((t && t.name) || '');
+const tagKeyOf = t => (t && typeof t === 'object' && t.id) ? t.id : tagNameOf(t);
+const statusName = d => {
+  const st = (d.tags||[]).find(t => t && typeof t === 'object' && t.kind === 'status');
+  return st ? st.name : (d.status || '未读');
+};
+const tagChipHtml = (t, extra='') => {
+  const c = (t && t.color) || '#86909c';
+  return `<span class="tag" style="background:${c};color:#fff;margin-right:4px;${extra}">${esc(tagNameOf(t))}</span>`;
+};
+
+// ===== 离线示例数据（后端未启动时兜底，保证 demo 始终可演示）=====
+// 注意：这是「示例文献」，不是用户真实数据。上线后由后端 /api/docs 提供。
+// 每条字段的 quote 都逐字来自下方 paragraphs，因此溯源校验是真的。
+const OFFLINE = { on: false };
+const SEED_DOCS = [{
+  id: 'lit_demo_rag',
+  title: 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks（离线示例）',
+  meta: 'Lewis et al. · 2020 · NeurIPS · 离线示例数据',
+  deleted: false, status: '未读', tags: ['示例'], last: '¶1',
+  paragraphs: [
+    'Retrieval-Augmented Generation (RAG) combines pre-trained parametric memory with non-parametric memory for language generation. We introduce RAG models where the parametric memory is a pre-trained seq2seq transformer and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever.',
+    'Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence they underperform on knowledge-intensive tasks where users expect access to the underlying knowledge.',
+    'The retriever is a Dense Passage Retriever (DPR), which consists of a BERT-base question encoder and a BERT-base document encoder. It returns the top-K passages from the Wikipedia dense vector index given an input query.',
+    'The generator is BART-large, a pre-trained seq2seq transformer with 400M parameters. We feed the input together with the retrieved passages into the generator to produce the output. Two variants are proposed: RAG-Sequence uses the same retrieved passages for the whole output sequence, while RAG-Token can use different passages for each target token.',
+    'We evaluate on four open-domain question answering tasks: Natural Questions, TriviaQA, WebQuestions and CuratedTrec. The main metric is Exact Match (EM). We also report results on abstractive question answering (MS-MARCO) and fact verification (FEVER).',
+    'Our experiments show that RAG obtains state-of-the-art results on three open-domain QA tasks, outperforming both parametric-only baselines such as T5 and non-parametric retrieve-and-extract systems.',
+    'A limitation is that the non-parametric memory is fixed at inference time, so the model cannot update its knowledge without re-indexing the corpus. In addition, we only study knowledge-intensive tasks where retrieval supervision is available.',
+    'References: [1] Karpukhin et al., Dense Passage Retrieval for Open-Domain QA, EMNLP 2020. [2] Lewis et al., BART, ACL 2020.'
+  ],
+  fields: {
+    '主旨': {text:'提出 RAG：把预训练 seq2seq 的参数化记忆，与 Wikipedia 稠密向量索引的非参数化记忆结合，用于知识密集型 NLP 任务。', loc:'¶1', quote:'combines pre-trained parametric memory with non-parametric memory', verified:true},
+    '研究问题': {text:'大模型的知识存在参数里，无法被精确访问和操纵，在知识密集型任务上表现不足。', loc:'¶2', quote:'their ability to access and precisely manipulate knowledge is still limited', verified:true},
+    '核心方法': {text:'检索器用 DPR（BERT-base 双编码器）从 Wikipedia 稠密索引取 top-K 段落；生成器用 BART-large，分 RAG-Sequence 与 RAG-Token 两种变体。', loc:'¶3', quote:'Dense Passage Retriever (DPR), which consists of a BERT-base question encoder', verified:true},
+    '关键步骤': {text:'先用 DPR 检索 top-K 段落，再把输入和检索到的段落一起喂给 BART-large 生成输出。', loc:'¶4', quote:'We feed the input together with the retrieved passages into the generator', verified:true},
+    '创新点': {text:'非参数化记忆可被端到端联合训练，且能在推理时替换索引；提出 RAG-Token 让每个目标 token 可用不同段落。', loc:'¶4', quote:'RAG-Token can use different passages for each target token', verified:true},
+    '实验设置': {text:'四个开放域问答任务：Natural Questions、TriviaQA、WebQuestions、CuratedTrec；另在 MS-MARCO（摘要式问答）和 FEVER（事实验证）上评测。', loc:'¶5', quote:'Natural Questions, TriviaQA, WebQuestions and CuratedTrec', verified:true},
+    '评估指标': {text:'开放域问答主指标为精确匹配（Exact Match, EM）。', loc:'¶5', quote:'The main metric is Exact Match (EM)', verified:true},
+    '关键结果': {text:'在三个开放域问答任务上取得当时的最优结果，优于纯参数化基线（如 T5）以及检索-抽取式系统。', loc:'¶6', quote:'state-of-the-art results on three open-domain QA tasks', verified:true},
+    '结论': null,
+    '局限性': {text:'非参数化记忆在推理时固定，不重新建索引就无法更新知识；且只研究了有检索监督信号的知识密集型任务。', loc:'¶7', quote:'the non-parametric memory is fixed at inference time', verified:true},
+    '金句摘录': null
+  }
+}];
+function fmtNow(){ const n=new Date(); const p=x=>String(x).padStart(2,'0'); return `${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}`; }
+// 用户输入的笔记/划选原文会回插进 innerHTML，必须转义，否则引号和尖括号会破版
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+</script>
+
+<!-- 工作台 -->
+<div class="page active" id="page-workbench">
+  <div class="workbench">
+    <div class="sidebar">
+      <div class="section"><div class="section-title">📁 项目</div>
+        <div id="wbProjectList"></div>
+        <div class="entry" style="color:#165dff;" onclick="createProject()">➕ 新建项目</div></div>
+      <div class="section"><div class="section-title">📒 笔记总览</div><div class="entry" onclick="showPage('notes')">全部笔记（<span id="wbNoteCnt">0</span>）</div></div>
+      <div class="section"><div class="section-title">📚 知识库</div><div class="entry" onclick="showPage('knowledge')">知识单元（<span id="wbKbCnt">0</span>）</div></div>
+      <div class="section"><div class="section-title">▶ 继续阅读</div>
+        <div id="wbContinue"></div></div>
+      <div class="section"><div class="section-title">📢 组会准备</div>
+        <div class="entry" onclick="openMeetingPicker()">选文献，准备组会</div></div>
+      <div class="section">
+        <div class="section-title">📚 文献列表（拖卡片到问答框限定范围）</div>
+        <div id="wbTagFilter" style="margin-bottom:8px;"></div>
+        <div id="wbDocList"></div>
+      </div>
+      <div class="section"><div class="entry" onclick="showPage('settings')">⚙️ 设置</div></div>
+    </div>
+    <div class="chat">
+      <div class="chat-title">
+        <span>💬 对话</span>
+        <span>
+          <button onclick="openCompare()">⚖️ 对比分析</button>
+          <button onclick="uploadDoc()">➕ 上传文献</button>
+        </span>
+      </div>
+      <div class="messages" id="messages">
+      </div>
+      <div class="dragged-docs" id="draggedDocs"></div>
+      <div class="input-bar"><input type="text" placeholder="问点什么..." id="chatInput" onkeydown="if(event.key==='Enter')sendMsg()"><button onclick="sendMsg()">发送</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 阅读页 -->
+<div class="page" id="page-reader">
+  <div class="reader-wrapper">
+    <div class="reader-top">
+      <div class="left">
+        <span class="back" onclick="showPage('workbench')">← 返回工作台</span>
+        <span class="title" id="readerTitle">—</span>
+      </div>
+      <div class="right">
+        <button onclick="alert('中英对照切换：原文 + 译文内联显示，术语表保证全文一致。当前为 Demo 演示。')">中/EN</button>
+        <button onclick="openMeetingPanel()">📢 组会</button>
+        <button onclick="openReproduce()">🔬 复现</button>
+        <button onclick="alert('笔记面板已在右侧，划选句子后可写笔记，支持版本链。当前为 Demo 演示。')">📝 笔记</button>
+        <button onclick="alert('桥接服务：http://127.0.0.1:8787，用于页面数据回写。当前为 Demo 演示。')">🔗 桥接</button>
+      </div>
+    </div>
+
+    <div class="reader">
+      <div class="toc">
+        <div style="font-size:12px;color:#86909c;margin-bottom:8px;font-weight:600;">目录</div>
+        <div id="readerToc"><div style="font-size:12px;color:#c9cdd4;">打开文献后自动生成</div></div>
+        <hr style="border:none;border-top:1px solid #f2f3f5;margin:10px 0;">
+        <div style="font-size:12px;color:#86909c;">⏱ 本段停留时长：32s<br>（页面可见且有活动的停留，非「专注阅读」）</div>
+      </div>
+      <div class="content" id="readerContent">
+        <div class="para" data-pid="2">
+          <div class="pid">¶2 · 3. 方法</div>
+          <div class="text">We use BERT as the encoder and a dense vector index for retrieval. The retriever is trained jointly with the generator.</div>
+          <div class="translation">我们使用 BERT 作为编码器，用稠密向量索引做检索。检索器与生成器联合训练。</div>
+          <div class="para-actions"><button onclick="openLookup('BERT')">❓ 查词</button><button onclick="openNoteModal(2)">📝 笔记</button><button onclick="alert('翻译：将本段加入翻译队列，术语表保证全文一致。当前为 Demo 演示。')">译</button></div>
+        </div>
+        <div class="para" data-pid="3">
+          <div class="pid">¶3 · 4. 实验</div>
+          <div class="text">We evaluate on three tasks: open-domain QA, abstractive QA, and Jeopardy question generation.</div>
+          <div class="translation">我们在三个任务上评估：开放域问答、摘要式问答、Jeopardy 问题生成。</div>
+          <div class="para-actions"><button onclick="openLookup('开放域问答')">❓ 查词</button><button onclick="openNoteModal(3)">📝 笔记</button><button onclick="alert('翻译：将本段加入翻译队列，术语表保证全文一致。当前为 Demo 演示。')">译</button></div>
+        </div>
+      </div>
+      <div class="notes-panel">
+        <div style="font-weight:600;margin-bottom:10px;">📝 本篇笔记</div>
+        <div id="readerNotes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 速读页 -->
+<div class="page" id="page-summary">
+  <div class="reader-top">
+    <div class="left">
+      <span class="back" onclick="showPage('workbench')">← 返回工作台</span>
+      <span class="title">速读：Retrieval-Augmented Generation</span>
+    </div>
+    <div class="right">
+      <button onclick="showPage('reader')">进入阅读</button>
+    </div>
+  </div>
+  <div class="plain">
+    <h2>Retrieval-Augmented Generation</h2>
+    <div class="subtitle">Lewis et al. · 2020 · NeurIPS · 11 字段速读卡 · 归一化溯源校验通过</div>
+    <div id="summaryFields"></div>
+  </div>
+</div>
+
+<!-- 笔记总览 -->
+<div class="page" id="page-notes">
+  <div class="plain">
+    <div class="back" onclick="showPage('workbench')" style="margin-bottom:12px;">← 返回工作台</div>
+    <h2>📒 笔记总览</h2>
+    <div class="subtitle">跨文献聚合 · 版本链保留 · 跳回原文</div>
+    <div class="stat-bar">📝 笔记 <b id="ntNoteCnt">0</b> 条 ｜ 📄 文献 <b id="ntDocCnt">0</b> 篇 ｜ ⏱ 数据为本地停留时长记录</div>
+    <div style="margin-bottom:12px;">
+      <select id="noteFilter" onchange="renderNotesOverview()">
+        <option value="">全部文献</option>
+      </select>
+    </div>
+    <div id="notesOverview"></div>
+  </div>
+</div>
+
+<!-- 综述 -->
+<div class="page" id="page-review">
+  <div class="plain" style="max-width:960px;">
+    <div class="back" onclick="showPage('workbench')">← 返回工作台</div>
+    <h2>✨ 综述</h2>
+    <div class="subtitle">生成后停等审阅 · 引用可追溯 · 可导出 / 可收藏论点</div>
+
+    <!-- 顶部操作 -->
+    <div style="margin:16px 0;display:flex;gap:8px;">
+      <button class="add-doc-btn" style="width:auto;padding:8px 20px;margin:0;" onclick="openNewReviewFlow()">➕ 新建综述</button>
+      <button class="add-doc-btn" style="width:auto;padding:8px 20px;margin:0;" onclick="renderReviewList()">↻ 刷新</button>
+    </div>
+    <!-- 筛选条 -->
+    <div id="reviewFilters" style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+    <!-- 搜索框 -->
+    <input type="text" id="reviewSearch" placeholder="搜索综述主题..." oninput="renderReviewList()" style="margin-bottom:16px;">
+
+    <!-- 列表（按项目分组） -->
+    <div id="reviewList"></div>
+  </div>
+</div>
+
+<!-- 新建综述：选范围 + 填主题 -->
+<div class="modal-mask" id="newReviewMask">
+  <div class="modal">
+    <div class="modal-title">➕ 新建综述</div>
+    <div style="font-size:13px;color:#86909c;margin-bottom:10px;">先选范围，再填主题。确认后调后端生成。</div>
+
+    <div style="font-weight:600;font-size:13px;margin:10px 0 6px;">① 范围</div>
+    <div id="reviewScopeChoices"></div>
+
+    <div style="font-weight:600;font-size:13px;margin:14px 0 6px;">② 主题</div>
+    <input type="text" id="reviewTopicInput" placeholder="如：RAG 方法对比">
+
+    <div class="modal-actions">
+      <button onclick="closeModal('newReviewMask')">取消</button>
+      <button class="primary" onclick="submitNewReview()">🎯 发起综述</button>
+    </div>
+  </div>
+</div>
+
+<!-- 项目页 -->
+<div class="page" id="page-project">
+  <div class="project">
+    <div class="sidebar">
+      <div style="margin-bottom:12px;"><span class="back" onclick="showPage('workbench')">← 返回工作台</span></div>
+      <div class="section"><div class="section-title">📚 项目内文献</div>
+        <button class="add-doc-btn" onclick="openAddDoc()">➕ 从总库托入</button>
+        <div id="projectDocs"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">✨ 项目综述（<span id="projReviewCnt">0</span>）</div>
+        <button class="add-doc-btn" onclick="openNewReviewForProject()">➕ 新建项目综述</button>
+        <div id="projReviewList"></div>
+      </div>
+    </div>
+
+    <div class="chat">
+      <div class="chat-title"><span id="projChatTitle">💬 项目对话</span>
+        <button onclick="renameCurrentProject()">重命名</button>
+        <button onclick="deleteCurrentProject()" style="color:#f53f3f;">删除项目</button></div>
+      <div class="banner info">🔒 项目问答默认限定项目内文献 · 移除 ≠ 删除，总库保留</div>
+      <div class="messages" id="projMessages">
+      </div>
+      <div class="input-bar">
+        <input type="text" placeholder="问点什么...（范围：项目内）" id="projInput" onkeydown="if(event.key==='Enter')projAsk()">
+        <button onclick="projAsk()">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 知识库 -->
+<div class="page" id="page-knowledge">
+  <div class="plain">
+    <div class="back" onclick="showPage('workbench')" style="margin-bottom:12px;">← 返回工作台</div>
+    <h2>📚 知识库</h2>
+    <div class="subtitle">知识 = 可复用、可追溯、可组合的论断 + 来源 · 下次相似问题优先返回</div>
+    <div id="kbList"></div>
+  </div>
+</div>
+
+<!-- 复现模式 -->
+<div class="page" id="page-reproduce">
+  <div class="plain">
+    <div class="back" onclick="openLastReader()" style="margin-bottom:12px;">← 返回阅读页</div>
+    <h2>🔬 复现清单</h2>
+    <div class="subtitle">从深解析 11 字段抽取 · 论文未提及的如实标注 · 不补全、不编造</div>
+
+    <div id="reproduceDocName" class="subtitle" style="margin-bottom:12px;"></div>
+    <div id="reproduceBody"></div>
+
+    <div style="margin-top:16px;">
+      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;margin-right:8px;" onclick="alert('导出：Markdown / CSV 格式。当前为 Demo 演示。')">⇪ 导出清单</button>
+      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;" onclick="alert('已复制到剪贴板（Demo）')">📋 复制清单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="page" id="page-settings">
+  <div class="plain settings">
+    <div class="back" onclick="showPage('workbench')" style="margin-bottom:12px;">← 返回工作台</div>
+    <h2>⚙️ 设置</h2>
+    <div class="group"><div class="group-title">用户（V2 本地多用户标识）</div>
+      <div class="row"><span class="label">当前用户</span><span class="value">默认用户</span></div>
+      <div class="row"><span class="label">切换用户</span><button onclick="alert('切换后工作台/笔记/知识库全部刷新为目标用户数据（Demo）')">切换</button></div>
+      <div class="row"><span class="label">新建用户</span><button onclick="alert('已创建本地用户（Demo），数据目录独立')">新建</button></div>
+    </div>
+    <div class="group"><div class="group-title">API</div>
+      <div class="row"><span class="label">Provider / Model</span><span class="value">OpenAI 兼容 · gpt-4o-mini</span></div>
+      <div class="row"><span class="label">每日预算 / 今日用量</span><span class="value">$2.00 · 12 次约 $0.35</span></div>
+      <div class="row"><span class="label">超预算行为</span><span class="value">自动翻译停止，页面黄条提示，不静默</span></div>
+    </div>
+    <div class="group"><div class="group-title">数据</div>
+      <div class="row"><span class="label">导出 / 备份 / 清除</span><span><button onclick="alert('导出：Markdown / CSV 格式。当前为 Demo 演示。')">导出</button> <button onclick="alert('备份：将本地数据打包保存。当前为 Demo 演示。')">备份</button> <button onclick="clearReadingHistory()">清除</button></span></div>
+      <div class="row"><span class="label">🧹 回收站（软删除）</span><button onclick="showDeleted()">查看已删除文献</button></div>
+    </div>
+    <div class="group"><div class="group-title">关于</div>
+      <div class="row"><span class="label">版本 / 技术栈</span><span class="value">v0.5 · Python + 本地 JSON + 桥接服务</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗们 -->
+<div class="floating-bar" id="floatingBar">
+  <button onclick="doHighlight()">🖍 划线</button><button onclick="openLookup(currentSelection)">❓ 查词</button><button onclick="openNoteFromSelection()">📝 笔记</button>
+</div>
+
+<!-- 笔记编辑弹窗 -->
+<div class="modal-mask" id="noteMask">
+  <div class="modal">
+    <div class="modal-title">📝 你要怎么处理这条笔记？</div>
+    <div id="noteChoiceWrap">
+      <div class="radio-row sel" data-v="update"><b>⭕ 更新这条笔记</b><div class="desc">保留旧版本，形成演化过程（默认）</div></div>
+      <div class="radio-row" data-v="new"><b>⭕ 新建一条笔记</b><div class="desc">原笔记保留，新笔记关联到同一段</div></div>
+    </div>
+    <div id="noteQuote" class="card" style="font-size:12px;color:#4e5969;background:#f7f8fa;border-left:2px solid #165dff;padding:6px 10px;margin-bottom:8px;display:none;"></div>
+    <textarea id="noteText" rows="3" placeholder="写点什么…（原文片段已自动抓取存档）"></textarea>
+    <div class="modal-actions"><button onclick="closeModal('noteMask')">取消</button><button class="primary" onclick="saveNote()">保存</button></div>
+  </div>
+</div>
+
+<!-- 查词弹窗 -->
+<div class="modal-mask" id="lookupMask">
+  <div class="modal">
+    <div class="modal-title">❓ 查词</div>
+    <div style="font-size:13px;color:#86909c;">选中内容：<b id="lookupTerm"></b></div>
+    <div class="card" id="lookupCard"></div>
+    <div class="modal-actions"><button onclick="collectTerm()">📌 收藏为知识</button><button class="primary" onclick="closeModal('lookupMask')">关闭</button></div>
+  </div>
+</div>
+
+<!-- 组会面板 -->
+<div class="modal-mask" id="meetingMask">
+  <div class="modal" style="width:560px;">
+    <div class="modal-title">📢 组会准备</div>
+    <div style="font-size:13px;color:#86909c;margin-bottom:12px;">目标：讲清楚这篇，并能回答提问</div>
+    <div class="card">
+      <div class="card-name">📦 模型卡片</div>
+      <div class="card-row" id="mcModel1">—</div>
+      <div class="card-row" id="mcModel2">—</div>
+    </div>
+    <div class="card">
+      <div class="card-name">📖 术语卡片</div>
+      <div class="card-row" id="mcTerm1">—</div>
+      <div class="card-row" id="mcTerm2">—</div>
+    </div>
+    <div class="card">
+      <div class="card-name">❓ 提问预演</div>
+      <div class="card-row">1. 为什么选这个模型？</div>
+      <div class="card-row">2. 实验设置为什么这样？</div>
+      <div class="card-row">3. 和 XXX 论文的区别在哪？</div>
+      <div class="card-row">4. 这个方法在 XXX 场景适用吗？</div>
+    </div>
+    <div class="card">
+      <div class="card-name">📝 讲稿素材</div>
+      <div class="card-row" id="mcTalk1">—</div>
+      <div class="card-row" id="mcTalk2">—</div>
+      <div class="card-row" id="mcTalk3">—</div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeModal('meetingMask')">关闭</button>
+      <button class="primary" onclick="alert('已复制讲稿（Demo）')">复制讲稿</button>
+    </div>
+  </div>
+</div>
+
+<!-- 组会选文献弹窗 -->
+<div class="modal-mask" id="meetingPickerMask">
+  <div class="modal">
+    <div class="modal-title">📢 选文献，准备组会</div>
+    <div style="font-size:13px;color:#86909c;margin-bottom:12px;">选一篇，进入组会准备面板。</div>
+    <div id="meetingPickerList"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('meetingPickerMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 对比亮牌弹窗 -->
+<div class="modal-mask" id="cmpIntentMask">
+  <div class="modal">
+    <div class="modal-title">🎯 意图亮牌：对比分析</div>
+    <div class="banner">候选 &lt;2 篇无法对比 · 别名歧义需选择 · 确认后才执行</div>
+    <div class="card" id="cmpScope"></div>
+    <div class="modal-actions"><button onclick="closeModal('cmpIntentMask')">取消</button><button class="primary" onclick="runCompare()">确认执行</button></div>
+  </div>
+</div>
+
+<!-- 托入弹窗 -->
+<div class="modal-mask" id="addDocMask">
+  <div class="modal">
+    <div class="modal-title">从总库托入文献</div>
+    <div style="font-size:13px;color:#86909c;margin-bottom:12px;">移除 ≠ 删除，总库保留。</div>
+    <div id="libraryList"></div>
+    <div class="modal-actions"><button onclick="closeModal('addDocMask')">取消</button><button class="primary" onclick="confirmAddDoc()">确认托入</button></div>
+  </div>
+</div>
+
+<!-- 项目命名弹窗（新建 / 重命名共用；不用 prompt()，避免被浏览器屏蔽后点了没反应） -->
+<div class="modal-mask" id="projMask">
+  <div class="modal" style="width:380px;">
+    <div class="modal-title" id="projMaskTitle">新建项目</div>
+    <input id="projMaskInput" type="text" placeholder="项目名称" maxlength="60"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();submitProjMask();}"
+           style="width:100%;padding:8px 10px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;box-sizing:border-box;">
+    <div id="projMaskErr" style="color:#f53f3f;font-size:12px;margin-top:8px;display:none;"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('projMask')">取消</button>
+      <button class="primary" onclick="submitProjMask()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用二次确认弹窗（替代 confirm()：内嵌预览/部分浏览器会屏蔽原生 confirm，点了没反应） -->
+<div class="modal-mask" id="confirmMask">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title" id="confirmTitle">确认</div>
+    <div id="confirmMsg" style="font-size:13px;color:#4e5969;white-space:pre-wrap;line-height:1.7;"></div>
+    <div class="modal-actions">
+      <button onclick="cancelConfirm()">取消</button>
+      <button class="primary" id="confirmOkBtn" onclick="submitConfirm()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 综述改主题弹窗（替代 prompt()） -->
+<div class="modal-mask" id="topicMask">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title">✏️ 修改综述主题</div>
+    <input id="topicMaskInput" type="text" placeholder="综述主题" maxlength="120"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();submitTopicMask();}"
+           style="width:100%;padding:8px 10px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;box-sizing:border-box;">
+    <div id="topicMaskErr" style="color:#f53f3f;font-size:12px;margin-top:8px;display:none;"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('topicMask')">取消</button>
+      <button class="primary" onclick="submitTopicMask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 标签管理弹窗 -->
+<div class="modal-mask" id="tagMask">
+  <div class="modal">
+    <div class="modal-title">🏷 标签</div>
+    <div id="tagStaleWarn" style="display:none;margin-bottom:10px;padding:8px 10px;border-radius:6px;
+         background:#fff2f0;color:#c92a2a;font-size:12px;line-height:1.6;"></div>
+    <div style="font-size:13px;color:#86909c;margin-bottom:10px;">当前文献：<b id="tagDocTitle"></b></div>
+    <div style="font-size:12px;color:#86909c;margin-bottom:6px;">已打标签（点 ✕ 移除）</div>
+    <div id="tagCurrent"></div>
+    <div style="margin-top:12px;font-size:12px;color:#86909c;margin-bottom:6px;">全部标签（点击切换 · 状态类互斥，只留一个）</div>
+    <div id="tagAll"></div>
+    <div style="margin-top:12px;">
+      <input type="text" id="tagNewInput" placeholder="输入新标签名，回车创建并加到本文献">
+    </div>
+    <div style="margin-top:12px;border-top:1px solid #f2f3f5;padding-top:12px;">
+      <div style="font-size:12px;color:#86909c;margin-bottom:6px;">全局管理：选一个标签 → 改名 / 改颜色 / 删除（影响全库）</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select id="tagOpSelect" onchange="renderTagColors()"
+                style="flex:1;min-width:140px;padding:6px 8px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;"></select>
+        <button class="add-doc-btn" id="tagRenameBtn" style="width:auto;padding:4px 10px;margin:0;" onclick="applyTagRename()">改名</button>
+        <button class="add-doc-btn" style="width:auto;padding:4px 10px;margin:0;color:#f53f3f;" onclick="applyTagDelete()">删除</button>
+      </div>
+      <div id="tagRenameRow" style="display:none;margin-top:8px;">
+        <input type="text" id="tagNewNameInput" placeholder="改成什么？" maxlength="20"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();applyTagRename();}"
+               style="width:100%;padding:6px 8px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#86909c;">颜色：</span>
+        <span id="tagColorRow"></span>
+      </div>
+      <div id="tagOpErr" style="color:#f53f3f;font-size:12px;margin-top:6px;display:none;"></div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeModal('tagMask')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 知识条目：新建 / 编辑（不用 prompt()） -->
+<div class="modal-mask" id="kbMask">
+  <div class="modal">
+    <div class="modal-title" id="kbMaskTitle">📌 收藏为知识</div>
+    <div style="font-size:12px;color:#86909c;margin-bottom:6px;">论断（你要沉淀下来的那句话，可修改）</div>
+    <textarea id="kbClaimInput" rows="4"
+              style="width:100%;padding:8px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;"
+              placeholder="例如：RAG 的核心矛盾是召回率与可读性的权衡"></textarea>
+    <div style="margin-top:10px;font-size:12px;color:#86909c;margin-bottom:6px;">标签（逗号分隔，可留空）</div>
+    <input type="text" id="kbTagsInput" placeholder="RAG, 方法论"
+           style="width:100%;padding:6px 8px;border:1px solid #e5e6eb;border-radius:6px;font-size:13px;box-sizing:border-box;">
+    <div id="kbSourceHint" style="margin-top:10px;font-size:12px;color:#86909c;line-height:1.6;"></div>
+    <div id="kbErr" style="color:#f53f3f;font-size:12px;margin-top:6px;display:none;"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('kbMask')">取消</button>
+      <button class="primary" onclick="submitKbMask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 单篇客服球球 -->
+<div class="chat-ball" onclick="toggleChatBall()">🤖</div>
+<div class="chat-ball-panel" id="chatBallPanel">
+  <div class="cb-title">
+    <span>💬 问这篇</span>
+    <span class="close" onclick="toggleChatBall()">✕</span>
+  </div>
+  <div class="cb-msgs" id="cbMsgs">
+  <div class="msg a">你好，我是当前这篇文献的助手。<div class="source">范围：仅当前文献</div></div>
+</div>
+  <div class="cb-input">
+    <input type="text" placeholder="问这篇..." id="cbInput" onkeydown="if(event.key==='Enter')cbSend()">
+    <button onclick="cbSend()">发送</button>
+  </div>
+</div>
+
+<script>
+let currentDocId = 'lit_001';
+// 真实阅读进度（供侧栏「继续阅读」用，避免写死成不存在的文献）
+let LAST_READ = null;
+// ============ 文献上传 ============
+async function uploadDoc(){
+  // 支持一次选多篇：multiple + 同一个 'file' 字段追加多次，后端按 list[UploadFile] 接收
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf';
+  input.multiple = true;
+
+  input.onchange = async (e) => {
+    // 注意：这里必须是 let —— 下面过滤掉非 PDF 时要重新赋值，
+    // 用 const 会抛 "Assignment to constant variable"，导致整批文件一个都传不上去
+    let files = Array.from(e.target.files || []);
+    if(!files.length) return;
+
+    const bad = files.filter(f => !f.name.toLowerCase().endsWith('.pdf'));
+    if(bad.length){
+      logMsg('a', `❌ 只支持 PDF，已忽略：${bad.map(f=>'《'+f.name+'》').join('、')}`);
+      files = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+      if(!files.length) return;
+    }
+
+    logMsg('a', `📤 开始上传 ${files.length} 篇：${files.map(f=>'《'+f.name+'》').join('、')}<br>（逐篇解析 + 深解析，需要一点时间）`);
+
+    for(let i = 0; i < files.length; i++){
+      const file = files[i];
+      logMsg('a', `⏳ [${i+1}/${files.length}] 正在处理《${file.name}》...`);
+      const formData = new FormData();
+      formData.append('files', file);   // 字段名必须和后端参数名 files 一致
+      try{
+        const res = await fetch(`${API_BASE}/api/upload`, { method:'POST', body: formData });
+        const data = await res.json();
+        const r = (data.results && data.results[0]) || data;
+        if(r.status === 'success'){
+          logMsg('a', `✅ [${i+1}/${files.length}] 《${r.title}》完成<br>阅读段 ${r.paragraphs} 段 / 检索块 ${r.chunks} 个 / 抽取 ${r.fields_count} 个字段。`);
+        } else {
+          logMsg('a', `❌ [${i+1}/${files.length}] 《${file.name}》失败：${r.detail || data.detail || '未知错误'}`);
+        }
+      }catch(err){
+        logMsg('a', `❌ [${i+1}/${files.length}] 《${file.name}》网络错误：${err.message}`);
+      }
+    }
+
+    await loadDocsFromAPI();
+    await loadProjects();
+    logMsg('a', `🎉 本次上传处理完毕（共 ${files.length} 篇）。`);
+  };
+
+  input.click();
+}
+// ============ 页面切换 ============
+function showPage(name){
+  document.querySelectorAll('.topbar .nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const ball = document.querySelector('.chat-ball');
+  const panel = document.getElementById('chatBallPanel');
+  if(name === 'reader'){
+    ball.style.display = 'flex';
+  } else {
+    ball.style.display = 'none';
+    panel.classList.remove('active');
+  }
+
+  if(name === 'reproduce') renderReproduce();
+  if(name === 'review') renderReviewList();
+}
+// 阅读页 / 复现页不进主导航：两者都必须绑定具体文献，
+// 从工作台点文献卡片进阅读页，再从阅读页顶部「复现」按钮进复现清单。
+document.querySelectorAll('.topbar .nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+function openLastReader(){
+  const d = docById(currentDocId) || activeDocs()[0];
+  if(!d){ alert('还没有文献，请先上传（或启动后端服务）。'); return; }
+  openReader(d.id);
+}
+// 复现页入口：只挂在阅读页顶部，不进主导航（复现必须绑定具体文献，全局入口没有意义）
+async function openReproduce(){
+  const d = docById(currentDocId) || activeDocs()[0];
+  if(!d){ alert('还没有文献，请先上传（或启动后端服务）。'); return; }
+  currentDocId = d.id;
+  // 必须先拉详情拿 fields：列表接口不带 fields，
+  // 否则下面会把「还没加载」误报成「论文中未提及」——那是假的未提及。
+  try{
+    const res = await fetch(`${API_BASE}/api/docs/${d.id}`);
+    if(res.ok){
+      const doc = await res.json();
+      d.fields = doc.fields || {};
+      d.paragraphs = doc.paragraphs || d.paragraphs || [];
+    }
+  }catch(err){ console.error('❌ 拉取详情失败：', err); }
+  showPage('reproduce');
+}
+function closeModal(id){document.getElementById(id).classList.remove('active');}
+document.querySelectorAll('.modal-mask').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('active');}));
+
+// ---- 通用二次确认：替代原生 confirm()
+// 原生 confirm 在内嵌预览 / 部分浏览器里会被直接屏蔽，返回 false，
+// 表现就是「点了按钮完全没反应」，用户无法判断是取消还是失败。统一走页面内弹窗。
+let _confirmResolve = null;
+function askConfirm(opts){
+  opts = opts || {};
+  if(_confirmResolve){ const prev=_confirmResolve; _confirmResolve=null; prev(false); }
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirmTitle').textContent = opts.title || '确认';
+    document.getElementById('confirmMsg').textContent = opts.message || '';
+    const btn = document.getElementById('confirmOkBtn');
+    btn.textContent = opts.okText || '确定';
+    btn.style.background = opts.danger ? '#f53f3f' : '';
+    btn.style.borderColor = opts.danger ? '#f53f3f' : '';
+    btn.style.color = opts.danger ? '#fff' : '';
+    document.getElementById('confirmMask').classList.add('active');
+  });
+}
+function _settleConfirm(v){
+  const r = _confirmResolve; _confirmResolve = null;
+  closeModal('confirmMask');
+  if(r) r(v);
+}
+function submitConfirm(){ _settleConfirm(true); }
+function cancelConfirm(){ _settleConfirm(false); }
+document.getElementById('confirmMask').addEventListener('click', e => {
+  if(e.target === e.currentTarget) cancelConfirm();
+});
+
+async function clearReadingHistory(){
+  const ok = await askConfirm({
+    title: '清除阅读记录',
+    message: '清除阅读记录？不可恢复。',
+    okText: '清除',
+    danger: true
+  });
+  if(!ok) return;
+  alert('已清除');
+}
+
+// ============ 组会面板 ============
+// 全部内容从当前文献的深解析结果抽取，不引用文献外的模型/术语
+// （旧版本里出现过 Llama 2 7B —— 2023 年发布，出现在 2020 年的论文里是错的）
+let meetingDocId = null;
+function fv(d,k){
+  const v = (d && d.fields) ? d.fields[k] : null;
+  if(!v) return null;
+  return (typeof v === 'object') ? v : {text:v, loc:'¶1', verified:false};
+}
+function renderMeetingPanel(){
+  const d = docById(meetingDocId) || docById(currentDocId) || activeDocs()[0];
+  const set = (id, txt) => { const el = document.getElementById(id); if(el) el.innerHTML = txt; };
+  if(!d){
+    ['mcModel1','mcModel2','mcTerm1','mcTerm2','mcTalk1','mcTalk2','mcTalk3'].forEach(id=>set(id,'—'));
+    return;
+  }
+  const f = k => {
+    const v = fv(d,k);
+    if(!v || !v.text) return {txt:`${k}：论文中未提及`, ok:false};
+    const loc = v.loc || '未定位';
+    const flag = (v.verified === false) ? ' <span style="color:#f53f3f;">（溯源未通过）</span>' : '';
+    return {txt:`${k}：${v.text}<span style="color:#86909c;">（来源：${loc}）</span>${flag}`, ok:true};
+  };
+  const core = f('核心方法'), step = f('关键步骤');
+  const main = f('主旨'), innov = f('创新点'), res = f('关键结果');
+
+  set('mcModel1', core.txt);
+  set('mcModel2', step.txt);
+  set('mcTerm1', main.txt);
+  set('mcTerm2', innov.txt);
+  set('mcTalk1', main.txt);
+  set('mcTalk2', core.txt);
+  set('mcTalk3', res.txt);
+}
+function openMeetingPanel(){
+  renderMeetingPanel();
+  document.getElementById('meetingMask').classList.add('active');
+}
+function openMeetingPicker(){
+  const wrap = document.getElementById('meetingPickerList');
+  wrap.innerHTML = activeDocs().map(d=>
+    `<label class="lib-item" onclick="pickMeetingDoc('${d.id}')"><input type="radio" name="meetingDoc"> ${d.title}</label>`
+  ).join('');
+  document.getElementById('meetingPickerMask').classList.add('active');
+}
+function pickMeetingDoc(id){
+  meetingDocId = id;
+  closeModal('meetingPickerMask');
+  openMeetingPanel();
+}
+
+// ============ 单篇客服球球 ============
+function toggleChatBall(){
+  const panel = document.getElementById('chatBallPanel');
+  panel.classList.toggle('active');
+
+  // 打开时刷新欢迎语，带上当前文献名
+  if(panel.classList.contains('active')){
+    const d = docById(currentDocId);
+    const msgs = document.getElementById('cbMsgs');
+    msgs.innerHTML = `<div class="msg a">你好，我是《${esc(d?.title || '当前文献')}》的助手。
+      <div class="source">范围：仅当前文献（${esc(currentDocId || '未选择')}）</div></div>`;
+  }
+}
+async function cbSend(){
+  const input = document.getElementById('cbInput');
+  const q = input.value.trim();
+  if(!q) return;
+
+  // 没打开任何文献时不许问
+  if(!currentDocId){
+    alert('请先从工作台打开一篇文献，再用球球提问。');
+    return;
+  }
+
+  const msgs = document.getElementById('cbMsgs');
+  msgs.insertAdjacentHTML('beforeend', `<div class="msg q">${esc(q)}</div>`);
+  input.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // 临时「思考中」
+  const pendingId = 'cb_pending_' + Date.now();
+  msgs.insertAdjacentHTML('beforeend',
+    `<div class="msg a" id="${pendingId}" style="color:#86909c;">检索中…</div>`);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/ask`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        question: q,
+        scope: [currentDocId],
+        session_id: 'doc_' + currentDocId
+      })
+    });
+    const data = await res.json();
+
+    const pending = document.getElementById(pendingId);
+    if(pending) pending.remove();
+
+    if(!data.answer){
+      msgs.insertAdjacentHTML('beforeend',
+        `<div class="msg a">❌ ${esc(data.detail || '后端返回异常')}</div>`);
+      msgs.scrollTop = msgs.scrollHeight;
+      return;
+    }
+
+    // 答案 + 来源
+        let extra = '';
+    if(data.scope_empty){
+      extra = `<div class="source" style="color:#d25f00;">范围内未找到相关内容（已严格限定本篇，未扩大到全库）</div>`;
+    } else if(data.sources && data.sources.length){
+      extra = '<div style="margin-top:6px;font-size:11px;color:#86909c;">参考来源：</div>';
+      data.sources.forEach(s => {
+        // 优先显示段落号 + 前 30 字，让 [1] [2] 能区分开
+        const label = s.pid ? `¶${s.pid} ${esc(s.snippet || '')}…` : esc(s.snippet || s.source);
+        const action = s.pid
+          ? `onclick="jumpToPara(${s.pid})"`      // 有段落号 → 跳段落
+          : `onclick="jumpToDoc('${s.doc_id}')"`; // 没段落号 → 退回跳文档
+        const style = s.pid ? '' : 'color:#86909c;';
+        extra += `<div class="source" ${action} style="${style}">[${s.index}] ${label}</div>`;
+      });
+    }
+
+    msgs.insertAdjacentHTML('beforeend',
+      `<div class="msg a">${esc(data.answer)}${extra}</div>`);
+    msgs.scrollTop = msgs.scrollHeight;
+
+  } catch(err){
+    const pending = document.getElementById(pendingId);
+    if(pending) pending.remove();
+    msgs.insertAdjacentHTML('beforeend',
+      `<div class="msg a">❌ 网络错误：${esc(err.message)}</div>`);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+// ============ 工作台：文献列表 + 拖拽 ============
+function renderDocList(){
+  const wrap=document.getElementById('wbDocList');
+  const list = activeDocs().filter(d => !activeTagFilter
+    || (d.tags||[]).some(t => tagKeyOf(t) === activeTagFilter));
+  wrap.innerHTML=list.map(d=>`
+    <div class="doc-card" draggable="true" data-doc="${d.id}">
+      <div class="title">${d.title}</div>
+      <div class="meta">${d.meta} · ${(d.tags||[]).length ? d.tags.map(t=>tagChipHtml(t)).join('') : '<span style="color:#c9cdd4;">无标签</span>'} · ${statusName(d)}</div>
+      <div class="progress">📍 上次读到 ${d.last}</div>
+      <div class="actions">
+        <button onclick="event.stopPropagation();openSummary('${d.id}')">速读</button>
+        <button onclick="event.stopPropagation();openReader('${d.id}')">阅读</button>
+        <button onclick="event.stopPropagation();toggleStatus('${d.id}')">${statusName(d)==='已读'?'标未读':'标已读'}</button>
+        <button onclick="event.stopPropagation();openTagModal('${d.id}')">🏷 标签</button>
+        <button onclick="event.stopPropagation();softDelete('${d.id}')">🗑 软删</button>
+      </div>
+    </div>`).join('');
+  bindDrag();
+  wrap.querySelectorAll('.doc-card').forEach(card=>{
+  card.addEventListener('click', ()=> openReader(card.dataset.doc));
+});
+  wrap.querySelectorAll('.doc-card .actions button').forEach(btn=>{
+    btn.addEventListener('click', e=> e.stopPropagation());
+  });
+  const nCnt = document.getElementById('wbNoteCnt');
+  const kCnt = document.getElementById('wbKbCnt');
+  if (nCnt) nCnt.textContent = DB.notes.filter(n => n.status === 'active').length;
+  if (kCnt) kCnt.textContent = DB.knowledge.length;
+  renderTagFilter();
+}
+// 已读 / 未读：走 kind=status 的标签（后端保证互斥，一篇文献只会留一个）
+async function toggleStatus(id){
+  const d = docById(id);
+  if(!d) return;
+  const want = statusName(d) === '已读' ? '未读' : '已读';
+  const rest = (d.tags||[]).filter(t => !(t && typeof t === 'object' && t.kind === 'status')).map(tagNameOf);
+  try{
+    d.tags = await saveDocTags(id, [...rest, want]);
+    await loadTagsFromAPI();
+    renderDocList();
+    renderTagFilter();
+  }catch(err){
+    alert('更新状态失败：' + err.message);
+  }
+}
+async function softDelete(id){
+  const d = docById(id);
+  if(!d) return;
+  const ok = await askConfirm({
+    title: '软删除文献',
+    message: `软删除《${d.title}》？\n\n笔记 / 问答 / 划线全保留，可到 设置 → 回收站 恢复。`,
+    okText: '软删除',
+    danger: true
+  });
+  if(!ok) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${id}/delete`, { method: 'POST' });
+    const data = await res.json();
+    if(data.status === 'deleted'){
+      d.deleted = true;
+      renderDocList();
+      logMsg('a', `已软删除《${d.title}》。可到 设置 → 回收站 恢复。`);
+    } else {
+      alert('删除失败：' + (data.detail || '未知错误'));
+    }
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+async function showDeleted(){
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/deleted/list`);
+    const data = await res.json();
+    const list = data.docs || [];
+
+    const itemsHtml = list.length
+      ? list.map(d => `
+          <div class="kb-item" style="margin-bottom:8px;">
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+              <input type="checkbox" class="del-check" value="${d.id}" style="margin-top:4px;">
+              <div style="flex:1;">
+                <div class="claim">${esc(d.title)}</div>
+                <div class="meta">${esc(d.meta || '')}</div>
+              </div>
+            </label>
+            <div class="actions" style="margin-top:8px;display:flex;gap:6px;">
+              <button class="add-doc-btn" style="width:auto;padding:3px 12px;margin:0;" onclick="restoreDoc('${d.id}', this)">↩ 恢复</button>
+              <button class="add-doc-btn" style="width:auto;padding:3px 12px;margin:0;color:#f53f3f;" onclick="purgeDoc('${d.id}', this)">🗑 彻底删除</button>
+            </div>
+          </div>
+        `).join('')
+      : '<div style="color:#86909c;font-size:13px;">回收站为空。</div>';
+
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask active';
+    mask.innerHTML = `<div class="modal" style="width:560px;">
+      <div class="modal-title">🧹 回收站</div>
+      <div style="font-size:13px;color:#86909c;margin-bottom:12px;">软删的文献在这里。可单篇操作，也可勾选后批量恢复。</div>
+      ${list.length ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f2f3f5;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="delCheckAll" onchange="toggleAllDeleted(this.checked)"> 全选
+        </label>
+        <span style="color:#86909c;font-size:12px;" id="delSelCount">已选 0 篇</span>
+        <div style="flex:1;"></div>
+        <button class="add-doc-btn" style="width:auto;padding:4px 14px;margin:0;" onclick="batchRestoreDeleted(this)">↩ 批量恢复</button>
+      </div>` : ''}
+      <div id="deletedList">${itemsHtml}</div>
+      <div class="modal-actions">
+        <button onclick="this.closest('.modal-mask').remove()">关闭</button>
+      </div>
+    </div>`;
+    mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+    document.body.appendChild(mask);
+
+    // 绑定 checkbox 变化，更新「已选 N 篇」和全选状态
+    document.querySelectorAll('#deletedList .del-check').forEach(cb => {
+      cb.addEventListener('change', updateDelSelCount);
+    });
+  } catch(err){
+    alert('加载回收站失败：' + err.message);
+  }
+}
+
+// 全选 / 取消全选
+function toggleAllDeleted(checked){
+  document.querySelectorAll('#deletedList .del-check').forEach(cb => { cb.checked = checked; });
+  updateDelSelCount();
+}
+
+// 更新「已选 N 篇」和全选框状态
+function updateDelSelCount(){
+  const all = document.querySelectorAll('#deletedList .del-check');
+  const checked = document.querySelectorAll('#deletedList .del-check:checked');
+  const cntEl = document.getElementById('delSelCount');
+  if(cntEl) cntEl.textContent = `已选 ${checked.length} 篇`;
+
+  const allBox = document.getElementById('delCheckAll');
+  if(allBox){
+    allBox.checked = (all.length > 0 && checked.length === all.length);
+    allBox.indeterminate = (checked.length > 0 && checked.length < all.length);
+  }
+}
+
+// 批量恢复
+async function batchRestoreDeleted(btn){
+  const checked = Array.from(document.querySelectorAll('#deletedList .del-check:checked'));
+  if(checked.length === 0){ alert('请先勾选要恢复的文献'); return; }
+  if(!await askConfirm({ title: '恢复文献', message: `恢复选中的 ${checked.length} 篇文献？` })) return;
+
+  btn.disabled = true;
+  btn.textContent = '恢复中…';
+
+  let ok = 0, fail = 0;
+  for(const cb of checked){
+    const id = cb.value;
+    try {
+      const res = await fetch(`${API_BASE}/api/docs/${id}/restore`, { method: 'POST' });
+      if(res.ok) ok++;
+      else fail++;
+    } catch(err){
+      fail++;
+    }
+  }
+
+  await loadDocsFromAPI();
+  document.querySelector('.modal-mask.active')?.remove();
+  await showDeleted();
+
+  alert(`已恢复 ${ok} 篇${fail ? `，失败 ${fail} 篇` : ''}`);
+}
+
+async function restoreDoc(id, btn){
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${id}/restore`, { method: 'POST' });
+    const data = await res.json();
+    if(data.status === 'restored'){
+      await loadDocsFromAPI();
+      btn.closest('.modal-mask').remove();
+      showDeleted();
+    } else {
+      alert('恢复失败：' + (data.detail || '未知错误'));
+    }
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+
+async function purgeDoc(id, btn){
+  const ok = await askConfirm({
+    title: '彻底删除',
+    message: '⚠️ 彻底删除不可恢复！\n\n会删掉：\n· SQLite 记录\n· Chroma 检索块\n· 原始 PDF 文件',
+    okText: '彻底删除',
+    danger: true
+  });
+  if(!ok) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${id}/purge?confirm=true`, { method: 'DELETE' });
+    const data = await res.json();
+    if(data.status === 'purged'){
+      btn.closest('.modal-mask').remove();
+      showDeleted();
+    } else {
+      alert('彻底删除失败：' + (data.detail || '未知错误'));
+    }
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+let qaScope=[];
+function bindDrag(){
+  document.querySelectorAll('[draggable="true"]').forEach(el=>{
+    el.addEventListener('dragstart',e=>e.dataTransfer.setData('doc',el.dataset.doc));
+  });
+  const chat=document.querySelector('#page-workbench .chat .input-bar');
+  chat.addEventListener('dragover',e=>e.preventDefault());
+  chat.addEventListener('drop',e=>{
+    e.preventDefault();
+    const id=e.dataTransfer.getData('doc');
+    if(qaScope.includes(id))return logMsg('a','该文献已在范围内，重复拖拽已去重。');
+    qaScope.push(id);
+    renderScope();
+  });
+}
+function renderScope(){
+  const w=document.getElementById('draggedDocs');
+  w.innerHTML=qaScope.map(id=>`<span class="tag" onclick="removeScope('${id}')">【${id}】✕</span>`).join('')+
+    (qaScope.length?`<span class="tag" style="background:#ffece8;color:#f53f3f;cursor:pointer;" onclick="qaScope=[];renderScope()">清空范围</span>`:'');
+}
+function removeScope(id){qaScope=qaScope.filter(x=>x!==id);renderScope();}
+
+async function loadNotesFromAPI(){
+  try {
+    const res = await fetch(`${API_BASE}/api/notes`);
+    const data = await res.json();
+    DB.notes = data.notes || [];
+    console.log('✅ 笔记已加载：', DB.notes.length, '条');
+  } catch(err){
+    console.error('❌ 加载笔记失败：', err);
+    DB.notes = [];
+  }
+}
+
+async function loadDocsFromAPI(){
+  try {
+    const res = await fetch(`${API_BASE}/api/docs`);
+    const data = await res.json();
+
+    // 把后端返回的文档转成前端格式（tags 由后端 doc_tags 联表给出）
+    DB.docs = data.docs.map(d => ({
+      id: d.id,
+      title: d.title,
+      meta: d.meta,
+      tags: d.tags || [],
+      deleted: d.deleted,
+      last: '¶1',
+      fields: {}  // 详情接口再拉
+    }));
+
+    renderDocList();
+    initProjectDocs();
+    console.log('✅ 文档列表已加载：', DB.docs.length, '篇');
+  } catch(err){
+    console.error('❌ 加载文档列表失败：', err);
+    // 降级：用离线示例数据，保证 demo 始终可演示（并显式告知这是示例）
+    if(DB.docs.length === 0){
+      OFFLINE.on = true;
+      DB.docs = JSON.parse(JSON.stringify(SEED_DOCS));
+      showOfflineBanner();
+    }
+    renderDocList();
+    initProjectDocs();
+  }
+}
+function showOfflineBanner(){
+  if(document.getElementById('offlineBanner')) return;
+  const el = document.createElement('div');
+  el.id = 'offlineBanner';
+  el.className = 'banner';
+  el.style.cssText = 'position:sticky;top:0;z-index:99;margin:8px 12px;';
+  el.innerHTML = '⚠️ 后端未连接（127.0.0.1:5000）——当前展示的是<b>离线示例数据</b>，上传与问答不可用。' +
+                 '真实数据请启动后端：<code>python backend/main.py</code>';
+  document.body.insertBefore(el, document.body.firstChild);
+}
+
+async function openReader(docId, pid){
+  currentDocId = docId;
+  LAST_READ = { doc: docId, pid: pid || (LAST_READ && LAST_READ.doc === docId ? LAST_READ.pid : 1) };
+  renderWbContinue();
+
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${docId}`);
+    const doc = await res.json();
+    const local = docById(docId);
+    if(local){
+      local.fields = doc.fields || {};
+      local.title = doc.title;
+      local.text = doc.text || '';
+      local.paragraphs = doc.paragraphs || [];
+    }
+  } catch(err){
+    console.error('❌ 拉取详情失败：', err);
+  }
+
+  renderReader();
+  showPage('reader');
+
+  if(pid){
+    setTimeout(() => jumpToPara(pid), 120);
+  }
+}
+
+async function openSummary(docId){
+  currentDocId = docId;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${docId}`);
+    const doc = await res.json();
+    const local = docById(docId);
+    if(local){
+      local.fields = doc.fields || {};
+      local.title = doc.title;
+      local.text = doc.text || '';
+      local.paragraphs = doc.paragraphs || [];
+    }
+  } catch(err){
+    console.error('❌ 拉取详情失败：', err);
+  }
+
+  renderSummary();
+  showPage('summary');
+}
+
+
+// ============ 对话 ============
+function logMsg(cls,html,extra=''){
+  const m=document.getElementById('messages');
+  const id = 'msg_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+  const acts = cls === 'a'
+    ? `<div class="actions">
+         <button onclick="copyMsg('${id}')">📋 复制</button>
+         <button onclick="delMsg('${id}')">🗑 删除</button>
+       </div>`
+    : '';
+  m.insertAdjacentHTML('beforeend',
+    `<div class="msg ${cls}" id="${id}">
+       <div class="role">${cls==='q'?'你':'助手'}</div>
+       <div class="msg-body">${html}</div>
+       ${extra}
+       ${acts}
+     </div>`);
+  m.scrollTop=m.scrollHeight;
+  return id;
+}
+function copyMsg(id){
+  const el = document.getElementById(id);
+  const body = el.querySelector('.msg-body')?.innerText || '';
+  navigator.clipboard.writeText(body).then(()=>{alert('已复制到剪贴板');}).catch(()=>{alert('复制失败，请手动选中');});
+}
+async function delMsg(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const hasKB = el.querySelector('.kb-badge') || el.querySelector('button[onclick*="collect"]');
+  if (hasKB) {
+    const also = await askConfirm({
+      title: '删除问答',
+      message: '这条问答可能已收藏为知识。\n\n点「一并删除」= 问答 + 知识条目都删；点「取消」= 保留知识条目，只删问答历史。',
+      okText: '一并删除'
+    });
+    el.remove();
+    alert(also ? '已删除问答历史 + 关联知识条目。' : '已删除问答历史，知识条目保留。');
+  } else {
+    const ok = await askConfirm({ title: '删除问答', message: '删除这条对话？', okText: '删除', danger: true });
+    if(ok) el.remove();
+  }
+}
+// 问答收藏：带这次回答引用的第一个来源（doc_id + pid + 摘录），可跳回原文
+function collectQA(btn){
+  const el = btn.closest('.msg');
+  let p = {};
+  try{ p = JSON.parse((el && el.dataset.kbsrc) || '{}'); }catch(e){ p = {}; }
+  const payload = {
+    source_type: 'qa',
+    source_session_id: p.source_session_id || 'wb_default',
+    source_doc_id: p.source_doc_id || null,
+    source_pid: p.source_pid || null,
+    source_quote: p.source_quote || ''
+  };
+  openKbMask(Object.assign(payload, { claim: p.claim || '' }));
+}
+async function sendMsg(){
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if(!q) return;
+
+  logMsg('q', q);
+  input.value = '';
+
+  try {
+    const scope = [...qaScope];
+      const res = await fetch(`${API_BASE}/api/ask`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        question: q,
+        scope,
+        session_id: 'wb_default'      // ← 工作台固定 session
+      })
+    });
+    const data = await res.json();
+
+    if(scope.length){
+      logMsg('a', `🔒 已按你拖入的 ${scope.length} 篇文献检索` +
+        (data.scope_empty ? '，范围内未召回任何内容' : `，命中 ${(data.sources||[]).length} 个片段`));
+    }
+
+    if(data.answer){
+      // 渲染引用来源
+      let extraHtml = '';
+      if(data.sources && data.sources.length > 0){
+        extraHtml = '<div style="margin-top:8px;font-size:12px;color:#86909c;">参考来源：</div>';
+        data.sources.forEach(s => {
+          extraHtml += `<div class="source" style="display:block;margin-top:4px;" onclick="jumpToDoc('${s.doc_id}')">[${s.index}] ${s.source}</div>`;
+        });
+      }
+      if(data.sources && data.sources.length > 0){
+        const s0 = data.sources[0];
+        extraHtml += `<div style="margin-top:8px;"><button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0;" onclick="collectQA(this)">📌 收藏为知识</button></div>`;
+        window._lastQaSrc = {
+          source_type: 'qa',
+          source_session_id: 'wb_default',
+          source_doc_id: s0.doc_id || null,
+          source_pid: s0.pid || null,
+          source_quote: s0.snippet || (s0.content || '').slice(0, 120)
+        };
+      }
+      const mid = logMsg('a', data.answer, extraHtml);
+      if(window._lastQaSrc){
+        const el = document.getElementById(mid);
+        if(el) el.dataset.kbsrc = JSON.stringify(Object.assign({ claim: (data.answer || '').slice(0, 300) }, window._lastQaSrc));
+      }
+    } else {
+      logMsg('a', `❌ ${data.detail || '后端返回异常'}`);
+    }
+  } catch(err){
+    logMsg('a', `❌ 网络错误：${err.message}`);
+  }
+}
+
+async function jumpToDoc(docId){
+  if(!docId) return;
+  await openReader(docId);
+}
+function jumpSource(id){
+  // 旧实现写死 data-pid="2"，点任何来源都跳到第 2 段 —— 溯源是假的
+  const n=DB.notes.find(x=>x.id===id);
+  const docId=(id&&id.startsWith('lit_'))?id:(n?n.doc:null);
+  if(docId&&docId!==currentDocId){ openReader(docId); }
+  showPage('reader');
+  if(n) setTimeout(()=>jumpToPara(n.pid),120);
+}
+function jumpToPara(pid){
+  const el=document.querySelector('#readerContent .para[data-pid="'+pid+'"]');
+  if(!el)return;
+  if(currentDocId){ LAST_READ={doc:currentDocId,pid:pid}; renderWbContinue(); }
+  showPage('reader');
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.background='#e8f3ff';
+  setTimeout(()=>{el.style.background='';},1500);
+}
+async function projAsk(){
+  const input = document.getElementById('projInput');
+  const q = input.value.trim();
+  if(!q) return;
+
+  // 取项目内的文献 id 列表
+  const proj = DB.projects[DB.currentProject];
+  const scope = (proj && proj.docs) ? proj.docs.slice() : [];
+
+  if(scope.length === 0){
+    alert('项目内还没有文献，请先从总库托入。');
+    return;
+  }
+
+  const msgs = document.getElementById('projMessages');
+  msgs.insertAdjacentHTML('beforeend',
+    `<div class="msg q"><div class="role">你</div><div>${esc(q)}</div></div>`);
+  input.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const pendingId = 'proj_pending_' + Date.now();
+  msgs.insertAdjacentHTML('beforeend',
+    `<div class="msg a" id="${pendingId}" style="color:#86909c;"><div class="role">助手</div><div>检索中…</div></div>`);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+      const res = await fetch(`${API_BASE}/api/ask`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        question: q,
+        scope: scope,
+        session_id: 'proj_' + DB.currentProject
+      })
+    });
+    const data = await res.json();
+
+    const pending = document.getElementById(pendingId);
+    if(pending) pending.remove();
+
+    if(!data.answer){
+      msgs.insertAdjacentHTML('beforeend',
+        `<div class="msg a"><div class="role">助手</div><div>❌ ${esc(data.detail || '后端返回异常')}</div></div>`);
+      msgs.scrollTop = msgs.scrollHeight;
+      return;
+    }
+
+    let extra = '';
+    if(data.scope_empty){
+      extra = `<div class="source" style="color:#d25f00;">范围内未找到相关内容（已严格限定项目内 ${scope.length} 篇，未扩大到全库）</div>`;
+    } else if(data.sources && data.sources.length){
+      extra = '<div style="margin-top:6px;font-size:11px;color:#86909c;">参考来源：</div>';
+      data.sources.forEach(s => {
+        const label = s.pid ? `¶${s.pid} ${esc(s.snippet || '')}…` : esc(s.snippet || s.source);
+        const action = s.pid
+          ? `onclick="jumpToPara(${s.pid})"`
+          : `onclick="jumpToDoc('${s.doc_id}')"`;
+        const style = s.pid ? '' : 'color:#86909c;';
+        extra += `<div class="source" ${action} style="${style}">[${s.index}] ${label}</div>`;
+      });
+    }
+
+    msgs.insertAdjacentHTML('beforeend',
+      `<div class="msg a"><div class="role">助手</div><div>${esc(data.answer)}</div>${extra}</div>`);
+    msgs.scrollTop = msgs.scrollHeight;
+
+  } catch(err){
+    const pending = document.getElementById(pendingId);
+    if(pending) pending.remove();
+    msgs.insertAdjacentHTML('beforeend',
+      `<div class="msg a"><div class="role">助手</div><div>❌ 网络错误：${esc(err.message)}</div></div>`);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+// ============ 阅读页 ============
+const floatingBar=document.getElementById('floatingBar');
+const readerContent=document.getElementById('readerContent');
+let currentSelection='';
+let currentPid=null;
+readerContent.addEventListener('mouseup',()=>{
+  const sel=window.getSelection(); const text=sel.toString().trim();
+  if(text.length>0){
+    currentSelection=text;
+    // 记住划选发生在哪一段：笔记要挂到这一段上，否则「这条笔记针对哪句」无从追溯
+    const node=sel.anchorNode; const el=node&&(node.nodeType===1?node:node.parentElement);
+    const para=el&&el.closest?el.closest('.para'):null;
+    currentPid=para?(parseInt(para.dataset.pid,10)||null):null;
+    const rect=sel.getRangeAt(0).getBoundingClientRect();
+    floatingBar.style.display='flex';
+    floatingBar.style.left=(rect.left+window.scrollX)+'px';
+    floatingBar.style.top=(rect.top+window.scrollY-40)+'px';
+  } else floatingBar.style.display='none';
+});
+document.addEventListener('mousedown',e=>{
+  if(!floatingBar.contains(e.target)&&!readerContent.contains(e.target))floatingBar.style.display='none';
+});
+function doHighlight(){
+  const sel=window.getSelection();
+  if(sel.rangeCount&&currentSelection){
+    try{sel.getRangeAt(0).surroundContents(document.createElement('mark'));}catch(e){}
+    logMsg('a','已划线并保存快照：「'+currentSelection.slice(0,40)+'…」可在笔记总览查看。');
+  }
+  floatingBar.style.display='none'; window.getSelection().removeAllRanges();
+}
+let noteCtx=null;
+document.querySelectorAll('#noteChoiceWrap .radio-row').forEach(r=>r.onclick=()=>{
+  document.querySelectorAll('#noteChoiceWrap .radio-row').forEach(x=>x.classList.remove('sel'));r.classList.add('sel');
+});
+function openNoteFromSelection(){
+  if(!currentSelection){alert('请先选中一段原文，再点「📝 笔记」。');return;}
+  openNoteModal(currentPid,null,currentSelection);
+}
+function openNoteModal(pid,noteId,quote){
+  const p=pid||currentPid||1;
+  // 没传 quote 时（点段落上的「📝 笔记」按钮，用户没划选），抓该段开头作上下文。
+  // 弹窗承诺了「原文片段自动抓取存档」，不存就是假的。
+  let q=quote||'';
+  if(!q){
+    const d=docById(currentDocId); const para=(d&&d.paragraphs||[])[p-1]||'';
+    q=para.slice(0,100);
+  }
+  noteCtx={pid:p,noteId:noteId||null,quote:q};
+  const qEl=document.getElementById('noteQuote');
+  qEl.style.display=q?'block':'none';
+  qEl.textContent=q?`原文锚点 ¶${p}：${q}${q.length>=100?'…':''}`:'';
+  document.getElementById('noteText').value='';
+  document.getElementById('noteChoiceWrap').style.display=noteId?'block':'none';
+  if(noteId)document.querySelector('#noteChoiceWrap .radio-row').classList.add('sel');
+  document.getElementById('noteMask').classList.add('active');
+  document.getElementById('noteText').focus();
+}
+async function saveNote(){
+  const txt = document.getElementById('noteText').value.trim();
+  if(!txt) return alert('请输入内容');
+
+  const docId = currentDocId || 'lit_001';
+
+  if(noteCtx.noteId){
+    // 更新已有笔记：追加版本
+    const n = DB.notes.find(x => x.id === noteCtx.noteId);
+    if(!n){ alert('笔记不存在'); return; }
+
+    const mode = document.querySelector('#noteChoiceWrap .radio-row.sel').dataset.v;
+
+    if(mode === 'update'){
+      // 追加版本
+      const versions = n.versions.slice();
+      const activeCount = versions.filter(v => v.status === 'active').length;
+      versions.push({
+        v: 'v' + (activeCount + 1),
+        t: fmtNow(),
+        c: txt,
+        status: 'active'
+      });
+      const res = await fetch(`${API_BASE}/api/notes/${n.id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ versions: versions })
+      });
+      if(!res.ok){ alert('保存失败'); return; }
+    } else {
+      // 新建关联笔记
+      const res = await fetch(`${API_BASE}/api/notes`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          doc_id: n.doc,
+          pid: n.pid,
+          quote: noteCtx.quote || n.quote || '',
+          content: txt,
+          related: n.id
+        })
+      });
+      if(!res.ok){ alert('保存失败'); return; }
+    }
+  } else {
+    // 新建笔记
+    const res = await fetch(`${API_BASE}/api/notes`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        doc_id: docId,
+        pid: noteCtx.pid,
+        quote: noteCtx.quote || '',
+        content: txt
+      })
+    });
+    if(!res.ok){ alert('保存失败'); return; }
+  }
+
+  closeModal('noteMask');
+  await loadNotesFromAPI();
+  renderReaderNotes();
+  renderNotesOverview();
+  renderDocList();
+}
+async function deleteVersion(noteId, v){
+  const n = DB.notes.find(x => x.id === noteId);
+  if(!n) return;
+  const ver = n.versions.find(x => x.v === v);
+  if(!ver) return;
+
+  const ok = await askConfirm({
+    title: '删除版本',
+    message: `删除版本 ${v}？\n\n二次确认：版本将软删除（deleted），可恢复，版本链跳过该版本。`,
+    okText: '删除版本',
+    danger: true
+  });
+  if(!ok) return;
+
+  const versions = n.versions.map(x => x.v === v ? {...x, status: 'deleted'} : x);
+  try {
+    const res = await fetch(`${API_BASE}/api/notes/${noteId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ versions: versions })
+    });
+    if(!res.ok){ alert('保存失败'); return; }
+    await loadNotesFromAPI();
+    renderReaderNotes();
+    renderNotesOverview();
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+
+async function deleteNote(noteId){
+  const n = DB.notes.find(x => x.id === noteId);
+  if(!n) return;
+  const ok = await askConfirm({
+    title: '删除笔记',
+    message: `删除整条笔记？共 ${n.versions.length} 个版本将一并软删，可恢复。`,
+    okText: '删除笔记',
+    danger: true
+  });
+  if(!ok) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/notes/${noteId}`, { method: 'DELETE' });
+    if(!res.ok){ alert('删除失败'); return; }
+    await loadNotesFromAPI();
+    renderReaderNotes();
+    renderNotesOverview();
+    renderDocList();
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+async function noteToKB(noteId){
+  const n = DB.notes.find(x => x.id === noteId);
+  if(!n) return;
+  const act = (n.versions || []).filter(v => v.status === 'active');
+  const claim = act.length ? act.at(-1).c : '';
+  if(!claim){ alert('这条笔记没有内容，无法收藏。'); return; }
+  try{
+    const res = await fetch(`${API_BASE}/api/knowledge`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        claim,
+        source_type: 'note',
+        source_doc_id: n.doc,
+        source_pid: n.pid,
+        source_quote: n.quote || '',
+        source_note_id: n.id
+      })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    await loadKnowledgeFromAPI();
+    renderKB(); renderDocList();
+    alert('笔记已升级为知识单元 ✅ 知识库里可点「跳回原文」。');
+  }catch(err){ alert('收藏失败：' + err.message); }
+}
+function renderReaderNotes(){
+  const wrap = document.getElementById('readerNotes');
+  const docId = currentDocId || '';
+  const list = DB.notes.filter(n => n.status === 'active' && n.doc === docId);
+
+  if(!list.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:#86909c;">暂无笔记。点段落里的「📝 笔记」开始记录。</div>';
+    return;
+  }
+
+  wrap.innerHTML = list.map(n => {
+    const act = n.versions.filter(v => v.status === 'active');
+    if(!act.length) return '';
+
+    const cur = act.at(-1);                // 最新版本
+    const reversed = [...act].reverse();   // 倒序（最新在上）
+
+    // 原文片段
+    const qHtml = n.quote
+      ? `<div style="font-size:11px;color:#86909c;border-left:2px solid #e5e6eb;padding-left:6px;margin-bottom:6px;cursor:pointer;"
+              onclick="event.stopPropagation();jumpToPara(${n.pid})">「${esc(n.quote)}」</div>`
+      : '';
+
+    // 版本链摘要（卡片上直接显示）
+    const chainHtml = act.length > 1
+      ? `<div style="font-size:11px;color:#86909c;margin-top:6px;">
+           🕐 版本链：${act.map(v => v.v).join(' → ')}
+         </div>`
+      : '';
+
+    // 展开的版本列表（倒序）
+    const evolHtml = reversed.map((v, idx) => {
+      const isLatest = idx === 0;
+      const marker = isLatest
+        ? '<span style="background:#165dff;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px;">最新</span>'
+        : '';
+      return `<div style="padding:6px 0;${idx < reversed.length - 1 ? 'border-bottom:1px dashed #e5e6eb;' : ''}">
+        <b style="color:#4e5969;">${v.v}</b>
+        <span style="color:#86909c;font-size:11px;"> · ${v.t}</span>
+        ${marker}
+        <div style="margin-top:4px;">${esc(v.c)}</div>
+        <a href="javascript:void(0)"
+           onclick="event.stopPropagation();deleteVersion('${n.id}','${v.v}')"
+           style="color:#f53f3f;font-size:11px;">删此版本</a>
+      </div>`;
+    }).join('');
+
+    return `<div class="note-item" onclick="this.classList.toggle('open')">
+      ${qHtml}
+      <div style="font-weight:500;">${esc(cur.c)}</div>
+      <div class="time">${cur.t} · <a href="javascript:void(0)" onclick="event.stopPropagation();jumpToPara(${n.pid})" style="color:#165dff;">第${n.pid}段</a> · 共 ${act.length} 个版本 ▾ 演化过程</div>
+      ${chainHtml}
+      <div class="evol">${evolHtml}</div>
+      <div class="note-acts">
+        <button onclick="event.stopPropagation();openNoteModal(${n.pid},'${n.id}')">编辑</button>
+        <button onclick="event.stopPropagation();noteToKB('${n.id}')">📌 收藏为知识</button>
+        <button onclick="event.stopPropagation();deleteNote('${n.id}')" style="color:#f53f3f;">删除整条</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============ 查词 ============
+const cardData={
+  'BERT':{name:'BERT',type:'预训练语言模型',source:'《RAG 综述》¶2（文献内 · 最可信）',idea:'双向 Transformer 编码器'},
+  'RAG':{name:'RAG',type:'检索增强生成',source:'《RAG 综述》¶1（文献内）',idea:'参数化记忆 + 非参数化记忆'},
+  '开放域问答':{name:'开放域问答',type:'任务类型',source:'内置公开库（文献内未解释，origin: builtin）',idea:'不限定领域，回答任意问题'}
+};
+let lookupCur=null;
+// 查词：用真正选中的文字，不再写死某个术语
+function openLookupSel(){
+  const sel = (window.getSelection()?.toString() || '').trim();
+  if(!sel){ alert('请先选中一个术语或模型名，再点「查词」。'); return; }
+  openLookup(sel);
+}
+function openLookup(term){
+  lookupCur=term;
+  const data=cardData[term]||null;
+  document.getElementById('lookupTerm').textContent=term;
+  document.getElementById('lookupCard').innerHTML=data
+    ?`<div class="card-name">${data.name}</div><div class="card-row">类型：<b>${data.type}</b></div><div class="card-row">出处：<b>${data.source}</b></div><div class="card-row">核心思想：<b>${data.idea}</b></div>`
+    :`<div class="card-name">${term}</div><div class="card-row" style="color:#f53f3f;">三层来源均未找到 —— 如实标注，不编造。</div>`;
+  document.getElementById('lookupMask').classList.add('active');
+}
+async function collectTerm(){
+  if(!lookupCur) return;
+  const d = cardData[lookupCur];
+  if(!d) return alert('未找到的内容无法收藏为知识（不编造）。');
+  try{
+    const res = await fetch(`${API_BASE}/api/knowledge`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ claim: `${lookupCur}：${d.idea}`, source_type: 'term' })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    await loadKnowledgeFromAPI();
+    renderKB(); renderDocList();
+    closeModal('lookupMask');
+    alert('已收藏为知识 ✅');
+  }catch(err){ alert('收藏失败：' + err.message); }
+}
+
+// 阅读页动态渲染
+// ============ 阅读页目录：按每篇真实正文动态生成（不再写死） ============
+function _esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+// 「1.」「2.1」—— 编号后必须接字母/中文，避免把「13.599*0.595」这类表格数字当标题
+const TOC_NUM = /^\s*(\d+(?:\.\d+){1,3})[\s、]+(?=[A-Za-z一-龥（(\[])/;
+// 「一、」「（三）」
+const TOC_CN_NUM = /^\s*([一二三四五六七八九十]+)[、.．](?=\s*\S)/;
+const TOC_PAREN = /^\s*[（(]([一二三四五六七八九十]+|\d+)[）)]\s*/;
+// 英文学术论文的通用章节名
+const TOC_WORD = /^\s*(abstract|keywords?|introduction|background|related\s+work|literature\s+review|method(s|ology)?|approach|model|framework|experiment(s|al)?(\s+(setup|settings|design))?|results?|evaluation|discussion|conclusion(s)?|limitation(s)?|future\s+work|references?|acknowledg(e)?ments?|appendix)\b/i;
+// 中文论文的通用章节名
+const TOC_CN = /^\s*(摘\s*要|关\s*键\s*词|引\s*言|前\s*言|绪\s*论|背\s*景|相关工作|文献综述|研究方法?|方\s*法|模\s*型|实\s*验|结果(与|和)?(分析|讨论)|讨\s*论|结\s*论|结\s*语|展\s*望|局\s*限|参考文献|致\s*谢|附\s*录)/;
+function _tocLevel(m){
+  if(m && typeof m[1] === 'string' && /\d/.test(m[1])) return Math.min(4, m[1].split('.').length);
+  return 1;
+}
+// 取标题文本：优先截出「2.2 Instruments」这类 Title Case 短语，否则退化为截断
+function _tocLabel(s){
+  let t = s.trim();
+  // 段落内保留了 PDF 原始换行，词间隔可能是 \n，所以用 \s 而不是空格
+  const tc = /^\s*(\d+(?:\.\d+){1,3})\s+([A-Z][A-Za-z'’\-]*)((?:\s+[a-z][a-z'’\-]*){0,5})/.exec(t);
+  if(tc) return (tc[1] + ' ' + tc[2] + tc[3]).trim();
+  // 中文没有词间空格，句末标点后不一定有空格，这里一并算断句
+  const cut = t.search(/[。．；;！？]|\.\s/);
+  if(cut > 6) t = t.slice(0, cut);
+  const limit = /[一-龥]/.test(t) ? 24 : 36;   // 中文信息密度高，24 字够表达标题
+  return t.length > limit ? t.slice(0, limit) + '…' : t;
+}
+// 兜底条目的摘要：段落开头若干字
+function _paraBrief(p){
+  const t = (p || '').replace(/\s+/g, ' ').trim();
+  return t.length > 18 ? t.slice(0, 18) + '…' : t;
+}
+function renderReaderToc(paragraphs){
+  const wrap = document.getElementById('readerToc');
+  if(!wrap) return;
+  if(!paragraphs || !paragraphs.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:#c9cdd4;">本文无正文</div>';
+    return;
+  }
+
+  // 1. 认章节：段首命中「2.1 / 一、/ Abstract / 摘要」等。
+  //    注意是看「段首」不是「整段」——分段后标题常和首句正文合成一段。
+  const heads = [];
+  paragraphs.forEach((p, i) => {
+    const s = (p || '').trim();
+    if(!s) return;
+    let m = TOC_NUM.exec(s) || TOC_CN_NUM.exec(s) || TOC_PAREN.exec(s) || TOC_WORD.exec(s) || TOC_CN.exec(s);
+    // IEEE 等排版：「I.I NTRODUCTION」「IV. C ONCLUSION」——整段全大写且无小写字母
+    if(!m && s.length <= 60 && /[A-Z]{2,}/.test(s) && !/[a-z]/.test(s) && !/^\d[\d.\s*]+$/.test(s)){
+      m = [s];
+    }
+    if(!m) return;
+    // 整段很长且段首只是巧合（如正文里以 "One" 开头）时，只在短段或明确编号时才认
+    if(s.length > 100 && !m[1]) return;
+    heads.push({ pid: i + 1, level: _tocLevel(m), label: _tocLabel(s) });
+  });
+
+  // 2. 目录条目：章节优先，章节之间的区间用段落号补齐，保证任何文献都有目录
+  const items = [];
+  let prev = 0;
+  if(heads.length >= 3){
+    const CHUNK = 25;
+    const pushRange = (a, b) => {
+      for(let x = a; x <= b; x += CHUNK){
+        const y = Math.min(b, x + CHUNK - 1);
+        items.push({ type: 'range', pid: x,
+          label: `¶${x}${y > x ? '–¶' + y : ''} · ${_paraBrief(paragraphs[x - 1])}` });
+      }
+    };
+    heads.forEach(h => { pushRange(prev + 1, h.pid - 1); items.push(h); prev = h.pid; });
+    pushRange(prev + 1, paragraphs.length);
+  } else {
+    // 章节太少（或识别不出）→ 退化为段落列表：短文逐段，长文每 12 段一组
+    const headMap = {};
+    heads.forEach(h => { headMap[h.pid] = h; });
+    const per = paragraphs.length <= 45 ? 1 : 12;
+    let x = 1;
+    while(x <= paragraphs.length){
+      if(headMap[x]){ items.push(headMap[x]); x++; continue; }
+      let end = Math.min(paragraphs.length, x + per - 1);
+      for(let k = x; k <= end; k++){ if(headMap[k]){ end = k - 1; break; } }
+      if(end < x) end = x;
+      items.push({ type: 'range', pid: x,
+        label: `¶${x}${end > x ? '–¶' + end : ''} · ${_paraBrief(paragraphs[x - 1])}` });
+      x = end + 1;
+    }
+  }
+
+  wrap.innerHTML = items.map(it => {
+    if(it.type === 'head'){
+      const pad = (it.level - 1) * 12 + 6;
+      const strong = it.level <= 1 ? 'font-weight:600;color:#1d2129;' : '';
+      return `<div class="toc-item" style="padding-left:${pad}px;${strong}" title="${_esc(it.label)}" onclick="jumpToPara(${it.pid})">${_esc(it.label)}</div>`;
+    }
+    return `<div class="toc-item" style="padding-left:6px;color:#a9aeb8;font-size:12px;" onclick="jumpToPara(${it.pid})">${it.label}</div>`;
+  }).join('') || '<div style="font-size:12px;color:#c9cdd4;">未识别到章节</div>';
+}
+
+function renderReader(){
+  const d = docById(currentDocId);
+  if(!d) {
+    document.getElementById('readerContent').innerHTML = '<div style="color:#86909c;">请先选择一篇文献</div>';
+    return;
+  }
+
+  const titleEl = document.querySelector('#page-reader .reader-top .title');
+  if(titleEl) titleEl.textContent = d.title;
+
+  const paragraphs = d.paragraphs || [];
+
+  // 旧版分段是按字符数硬切的（会半句跨段）。存量文献若未重建，这里如实提示，
+  // 否则用户会以为「代码改了但没生效」。
+  const avgLen = paragraphs.length
+    ? paragraphs.reduce((s,p)=>s+p.length,0) / paragraphs.length : 0;
+  const staleSeg = paragraphs.length > 150 || (paragraphs.length > 0 && avgLen < 80);
+  const warnHtml = staleSeg
+    ? `<div class="banner" style="margin-bottom:12px;">⚠️ 本篇的阅读段落由旧版算法生成（按字符数硬切，可能半句跨段、双栏串行）。重建：<code>python backend/resegment.py</code></div>`
+    : '';
+
+  if(paragraphs.length === 0){
+    document.getElementById('readerContent').innerHTML = '<div style="color:#86909c;">本文无正文（请重新上传）</div>';
+    renderReaderToc([]);
+    return;
+  }
+
+  const html = paragraphs.map((p, i) => {
+    const pid = i + 1;
+    return `
+      <div class="para" data-pid="${pid}">
+        <div class="pid">¶${pid}</div>
+        <div class="text">${_esc(p)}</div>
+        <div class="para-actions">
+          <button onclick="openLookupSel()">❓ 查词</button>
+          <button onclick="openNoteModal(${pid})">📝 笔记</button>
+          <button onclick="alert('翻译：将本段加入翻译队列。')">译</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+    document.getElementById('readerContent').innerHTML = warnHtml + html;
+
+  // 左侧目录：随本篇正文动态生成
+  renderReaderToc(paragraphs);
+
+  // 渲染右侧「本篇笔记」
+  renderReaderNotes();
+}
+
+// ============ 速读页：11 模块在前 + 引用统一在末尾 ============
+let SUMMARY_CITES = [];   // 当前文献的引用表，[n] 上标与末尾列表共用
+
+// 在段落文本里把 quote 逐字标出来。
+// 段落保留了 PDF 的原始换行/多空格，所以先做「去空白索引 → 原始索引」映射再定位。
+// PDF 连字（ﬁ ﬂ ﬀ…）在原文里是单个码位，quote 里是普通字母 —— 必须归一化后才能对上
+const _LIG = { 'ﬀ':'ff', 'ﬁ':'fi', 'ﬂ':'fl', 'ﬃ':'ffi', 'ﬄ':'ffl', 'ﬅ':'ft', 'ﬆ':'st' };
+function _delig(s){
+  return String(s || '').replace(/[ﬀﬁﬂﬃﬄﬅﬆ]/g, c => _LIG[c] || c);
+}
+function _markQuote(textEl, quote){
+  const raw = textEl.textContent || '';
+  const nq = _delig(quote).replace(/\s+/g, '');
+  if(!nq) return false;
+
+  // 建「归一化串 → 原文下标」的映射；连字会展开成多个字符，每个都指回同一个原文下标
+  const idxMap = [];
+  let nr = '';
+  for(let i = 0; i < raw.length; i++){
+    if(/\s/.test(raw[i])) continue;
+    const ex = _delig(raw[i]);
+    for(const c of ex){ idxMap.push(i); nr += c; }
+  }
+  const p = nr.indexOf(nq);
+  if(p < 0) return false;
+
+  const s = idxMap[p], e = idxMap[p + nq.length - 1] + 1;
+  textEl.innerHTML =
+    _esc(raw.slice(0, s)) +
+    '<mark class="quote-hit">' + _esc(raw.slice(s, e)) + '</mark>' +
+    _esc(raw.slice(e));
+  return true;
+}
+
+async function jumpToQuote(docId, n){
+  const c = SUMMARY_CITES[n - 1];
+  if(!c) return;
+  if(!c.pid){ alert('该引用未定位到段落（pid 为空）'); return; }
+
+  await openReader(docId);
+  showPage('reader');
+
+  setTimeout(() => {
+    const para = document.querySelector(`#readerContent .para[data-pid="${c.pid}"]`);
+    if(!para){ alert(`¶${c.pid} 不在当前正文中（本文共 ${(docById(docId)?.paragraphs || []).length} 段）`); return; }
+
+    // 清掉上一次的高亮
+    document.querySelectorAll('#readerContent mark.quote-hit').forEach(m => {
+      const parent = m.parentNode;
+      parent.replaceChild(document.createTextNode(m.textContent), m);
+      parent.normalize();
+    });
+
+    const hit = _markQuote(para.querySelector('.text'), c.quote);
+    para.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if(hit){
+      para.style.background = '#fffbe6';
+      setTimeout(() => { para.style.background = ''; }, 1600);
+    } else {
+      // quote 逐字匹配不上（段落重建过）→ 如实说，只定位到段落，不假装命中
+      para.style.background = '#ffece8';
+      setTimeout(() => { para.style.background = ''; }, 2000);
+      alert(`已定位到 ¶${c.pid}，但该引文在当前段落中未逐字命中（段落可能已重建）。\n建议在速读页重跑深解析。`);
+    }
+  }, 150);
+}
+
+function renderSummary(){
+  const d = docById(currentDocId) || DB.docs[0];
+  if(!d) {
+    document.getElementById('summaryFields').innerHTML = '<div style="color:#86909c;">请先上传文献</div>';
+    return;
+  }
+
+  const titleEl = document.querySelector('#page-summary .reader-top .title');
+  if(titleEl) titleEl.textContent = '速读：' + d.title;
+
+  const h2El = document.querySelector('#page-summary .plain h2');
+  if(h2El) h2El.textContent = d.title;
+
+  const subtitleEl = document.querySelector('#page-summary .plain .subtitle');
+  if(subtitleEl){
+    // 不再写死「溯源校验通过」——按真实通过数显示
+    const named = ['主旨','研究问题','核心方法','关键步骤','创新点','实验设置','评估指标','关键结果','结论','局限性','金句摘录'];
+    const got = named.filter(k => d.fields && d.fields[k]);
+    const okN = got.filter(k => d.fields[k].verified !== false).length;
+    subtitleEl.textContent = (d.meta || '') +
+      ` · 11 字段速读卡 · 抽到 ${got.length} 项，溯源校验通过 ${okN} 项` +
+      (got.length && okN < got.length ? '（未通过的已标注，不计入可追溯结论）' : '');
+  }
+
+  const names = ['主旨','研究问题','核心方法','关键步骤','创新点','实验设置','评估指标','关键结果','结论','局限性','金句摘录'];
+
+  // 引用表：11 个模块的引文统一收集到这里，正文里只留 [n] 上标
+  SUMMARY_CITES = [];
+  const addCite = (k, v, ok) => {
+    SUMMARY_CITES.push({ key: k, pid: v.pid, quote: v.quote || '', verified: !!ok });
+    return SUMMARY_CITES.length;
+  };
+
+  const cardsHtml = names.map(k => {
+    const v = d.fields && d.fields[k];
+
+    if(v && typeof v === 'object' && v.text){
+      const isMissing = v.text.includes('未明确提及') || v.text.includes('未提及');
+      if(isMissing){
+        return `<div class="field na"><div class="field-name">${k}</div><div class="field-value">论文中未提及</div></div>`;
+      }
+      // 溯源校验结果必须如实展示：校验未通过的不能标注为可追溯
+      const ok = v.verified !== false;
+      const n = v.quote ? addCite(k, v, ok) : 0;
+      const citeSup = n
+        ? `<sup class="cite${ok ? '' : ' bad'}" title="跳到原文并高亮：${_esc(v.quote.slice(0, 40))}" onclick="event.stopPropagation();jumpToQuote('${d.id}',${n})">[${n}]</sup>`
+        : '';
+      const srcLine = ok
+        ? `来源：${v.loc || '未定位'} · 溯源校验通过 · 📌 收藏为知识`
+        : `⚠️ 溯源校验未通过（${v.loc || '未定位'}）——该结论未在原文中定位到出处，仅供参考`;
+      return `<div class="field">
+        <div class="field-name">${k}${ok ? '' : ' <span style="color:#f53f3f;font-size:12px;">未溯源</span>'}</div>
+        <div class="field-value">${v.text}${citeSup}</div>
+        <div class="field-source" style="${ok ? '' : 'color:#f53f3f;'}" onclick="openReader('${d.id}')">${srcLine}</div>
+      </div>`;
+    }
+
+    if(v && typeof v === 'string' && !v.includes('未提及')){
+      return `<div class="field">
+        <div class="field-name">${k}</div>
+        <div class="field-value">${v}</div>
+        <div class="field-source" onclick="openReader('${d.id}')">来源：未定位 · 📌 收藏为知识</div>
+      </div>`;
+    }
+
+    return `<div class="field na"><div class="field-name">${k}</div><div class="field-value">论文中未提及</div></div>`;
+  }).join('');
+
+  // 末尾「引用与溯源」区
+  let citesHtml = '';
+  if(SUMMARY_CITES.length){
+    const okN = SUMMARY_CITES.filter(c => c.verified).length;
+    citesHtml = `<div class="cites" id="summaryCites">
+      <div class="cites-title">引用与溯源 · 共 ${SUMMARY_CITES.length} 条，其中 ${okN} 条通过原文校验</div>
+      ${SUMMARY_CITES.map((c, i) => `
+        <div class="cite-item${c.verified ? '' : ' bad'}" onclick="jumpToQuote('${d.id}',${i + 1})">
+          <span class="cite-n">[${i + 1}]</span>
+          <span class="cite-key">${c.key}</span>
+          <span class="cite-loc">¶${c.pid || '?'}</span>
+          <div class="cite-text">「${_esc(c.quote)}」</div>
+          ${c.verified ? '' : '<div class="cite-warn">⚠️ 该引文未在原文中定位到，不计入可追溯结论</div>'}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  document.getElementById('summaryFields').innerHTML = cardsHtml + citesHtml;
+}
+
+// ============ 复现清单：只从深解析 11 字段抽取，不补全 ============
+// 每条都标出来是「从哪个字段抽的」，抽不到就如实说论文未提及。
+const REPRO_MAP = [
+  {name:'1. 数据集',     from:'实验设置', tip:'论文没单独列数据集时会一并写在实验设置里'},
+  {name:'2. 环境依赖',   from:null,      tip:'11 字段不包含此项，若实验设置里没写则未提及'},
+  {name:'3. 模型结构',   from:'核心方法'},
+  {name:'4. 训练参数',   from:'关键步骤'},
+  {name:'5. 评估指标',   from:'评估指标'},
+  {name:'6. 运行顺序',   from:null,      tip:'论文一般不写 step-by-step，多为未提及'},
+  {name:'7. 预期结果',   from:'关键结果'},
+  {name:'8. 已知难点',   from:'局限性'},
+  {name:'9. 代码 / 数据链接', from:null, tip:'11 字段不包含此项，默认未提及'}
+];
+
+function renderReproduce(){
+  const d = docById(currentDocId) || activeDocs()[0];
+  const body = document.getElementById('reproduceBody');
+  const nameEl = document.getElementById('reproduceDocName');
+
+  if(!d){
+    nameEl.textContent = '请先选择一篇文献';
+    body.innerHTML = '<div style="color:#86909c;">还没有文献。请上传后再查看复现清单。</div>';
+    return;
+  }
+  nameEl.innerHTML = `来源文献：<b>${d.title}</b> · 以下全部内容均从该文献的深解析结果中抽取，未做任何补全`;
+
+  const f = d.fields || {};
+  const missing = [];
+
+  const html = REPRO_MAP.map(item => {
+    const v = item.from ? f[item.from] : null;
+    const val = (v && typeof v === 'object') ? v : (typeof v === 'string' ? {text:v, loc:'¶1', verified:false} : null);
+
+    if(!val || !val.text){
+      missing.push(item.name.replace(/^\d+\.\s*/,''));
+      return `<div class="field na">
+        <div class="field-name">${item.name}</div>
+        <div class="field-value">论文中未提及</div>
+        ${item.tip ? `<div class="field-source">说明：${item.tip}</div>` : ''}
+      </div>`;
+    }
+
+    // 溯源未通过的，必须显式标注，不能装作已验证
+    const ok = val.verified !== false;
+    const locTxt = val.loc || '未定位';
+    const srcLine = ok
+      ? `来源：${locTxt}（字段「${item.from}」）· 📌 收藏为知识`
+      : `⚠️ 溯源未通过（${locTxt}），仅供参考，不计入可追溯结论`;
+
+    return `<div class="field">
+      <div class="field-name">${item.name}</div>
+      <div class="field-value">${val.text}</div>
+      ${val.quote ? `<div class="field-value" style="font-size:12px;color:#86909c;">原文：「${val.quote}」</div>` : ''}
+      <div class="field-source" style="${ok?'':'color:#f53f3f;'}">${srcLine}</div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = html + (missing.length
+    ? `<div class="banner">⚠️ 缺口汇总：${missing.join(' / ')} 未提及。本清单只抽取，不补全，不承诺可复现。</div>`
+    : `<div class="banner info">本清单 9 项均有出处。仍提醒：抽取 ≠ 可复现，实际复现还取决于论文没写出的工程细节。</div>`);
+}
+
+// ============ 笔记总览 ============
+function renderNotesOverview() {
+  const sel = document.getElementById('noteFilter');
+  if (sel.options.length !== DB.docs.length + 1)
+    sel.innerHTML = '<option value="">全部文献</option>' + DB.docs.map(d => `<option value="${d.id}">${d.title}</option>`).join('');
+  const fid = sel.value;
+  const notes = DB.notes.filter(n => n.status === 'active' && (!fid || n.doc === fid));
+  document.getElementById('ntNoteCnt').textContent = notes.length;
+  document.getElementById('ntDocCnt').textContent = new Set(notes.map(n => n.doc)).size;
+  document.getElementById('notesOverview').innerHTML = notes.length ? notes.map(n => {
+    const act = n.versions.filter(v => v.status === 'active');
+    const cur = act.at(-1);
+    const doc = docById(n.doc);
+    return `<div class="kb-item">
+      <div class="claim">${cur.c}</div>
+      <div class="source" onclick="jumpSource('${n.doc}')">↪ 跳到原文：${doc ? doc.title : n.doc} ¶${n.pid}${doc && doc.deleted ? '（⚠️ 原文已删除，链接不可点）' : ''}</div>
+      <div class="meta">
+        🕐 ${cur.t} ·
+        版本链：${[...act].reverse().map(v => v.v).join(' → ')} ·
+        共 ${act.length} 版
+      </div>
+      <div class="actions" style="margin-top:8px;display:flex;gap:6px;">
+        <button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0;" onclick="openNoteModal(${n.pid},'${n.id}')">编辑</button>
+        <button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0;" onclick="noteToKB('${n.id}')">📌 收藏为知识</button>
+        <button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0;color:#f53f3f;" onclick="deleteNote('${n.id}')">🗑 删除整条</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="color:#86909c;font-size:13px;">无相关笔记 —— 如实说明，不编造。</div>';
+}
+
+// ============ 综述 ============
+let reviewScopeChoice = 'all';   // 'all' | 'proj_xxx' | 'manual'
+let reviewScopeManual = [];
+
+async function renderReviewList(){
+  const wrap = document.getElementById('reviewList');
+  wrap.innerHTML = '<div style="color:#86909c;font-size:13px;">加载中…</div>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/reviews`);
+    const data = await res.json();
+    let list = data.reviews || [];
+
+    // 筛选（按项目）
+    if(activeReviewFilter && activeReviewFilter !== 'all'){
+      list = list.filter(r => r.project_id === activeReviewFilter || (activeReviewFilter === 'global' && !r.project_id));
+    }
+
+    // 搜索
+    const q = (document.getElementById('reviewSearch')?.value || '').trim().toLowerCase();
+    if(q){
+      list = list.filter(r => (r.topic || '').toLowerCase().includes(q));
+    }
+
+    if(list.length === 0){
+      wrap.innerHTML = '<div style="color:#86909c;font-size:13px;">还没有综述。点上面「➕ 新建综述」开始。</div>';
+      renderReviewFilters();
+      return;
+    }
+
+    // 按项目分组
+    const groups = {};
+    list.forEach(r => {
+      const key = r.project_id || '__global__';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+
+    let html = '';
+    // 全库组
+    if(groups['__global__']){
+      html += `<div style="font-weight:600;margin:16px 0 8px;color:#4e5969;">🌐 全库综述（${groups['__global__'].length}）</div>`;
+      html += groups['__global__'].map(r => renderReviewItem(r)).join('');
+    }
+    // 各项目组
+    Object.keys(groups).filter(k => k !== '__global__').forEach(pid => {
+      const proj = DB.projects[pid];
+      const name = proj?.name || pid;
+      html += `<div style="font-weight:600;margin:16px 0 8px;color:#4e5969;">📁 ${esc(name)}（${groups[pid].length}）</div>`;
+      html += groups[pid].map(r => renderReviewItem(r)).join('');
+    });
+
+    wrap.innerHTML = html;
+    renderReviewFilters();
+  } catch(err){
+    wrap.innerHTML = `<div style="color:#f53f3f;font-size:13px;">加载失败：${esc(err.message)}</div>`;
+  }
+}
+// 综述覆盖度：把未引用的文献分成 A/B 两类展示
+function renderNotCited(notRetrieved, retrievedNotCited, hitCounts) {
+  const line = (id, reason, extra) => {
+    const d = docById(id);
+    const title = d ? d.title : id;
+    return `<div style="margin-bottom:6px;">
+      · <b>${esc(title)}</b>
+      <span style="color:#86909c;font-size:12px;">（${reason}${extra || ''}）</span>
+    </div>`;
+  };
+
+  let html = '';
+
+  if (notRetrieved.length) {
+    html += `<div style="font-weight:600;font-size:13px;margin-bottom:6px;">🔍 与主题不相关（检索未命中）</div>`;
+    html += notRetrieved.map(id => line(id, '检索阶段就没召回片段')).join('');
+  }
+
+  if (retrievedNotCited.length) {
+    if (html) html += '<div style="height:8px;"></div>';
+    html += `<div style="font-weight:600;font-size:13px;margin-bottom:6px;">📄 有相关内容但未被引用</div>`;
+    html += retrievedNotCited.map(id => {
+      const n = hitCounts[id] || 0;
+      return line(id, `检索到 ${n} 个片段`, '，LLM 认为不足或未采纳');
+    }).join('');
+  }
+
+  if (!html) html = '<div style="color:#86909c;font-size:13px;">（无）</div>';
+  return html;
+}
+function renderReviewItem(r){
+  return `
+    <div class="kb-item" style="margin-bottom:10px;">
+      <div class="claim">${esc(r.topic)}</div>
+      <div class="meta">
+        ${(r.scope || []).length} 篇 ·
+        ${esc(r.status)} ·
+        ${esc(r.created_at || '')}
+      </div>
+      <div class="actions" style="margin-top:8px;display:flex;gap:6px;">
+        <button class="add-doc-btn" style="width:auto;padding:3px 12px;margin:0;" onclick="openReviewDetail('${r.id}')">查看</button>
+        <button class="add-doc-btn" style="width:auto;padding:3px 12px;margin:0;" onclick="editReview('${r.id}')">编辑</button>
+        <button class="add-doc-btn" style="width:auto;padding:3px 12px;margin:0;color:#f53f3f;" onclick="softDeleteReview('${r.id}')">🗑 删除</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderReviewFilters(){
+  const wrap = document.getElementById('reviewFilters');
+  if(!wrap) return;
+  const filters = [
+    {v: 'all', label: '全部'},
+    {v: 'global', label: '🌐 全库'},
+    ...Object.entries(DB.projects || {}).map(([pid, p]) => ({v: pid, label: '📁 ' + (p.name || pid)}))
+  ];
+  wrap.innerHTML = filters.map(f => `
+    <span class="tag ${activeReviewFilter === f.v ? 'ok' : ''}" style="cursor:pointer;padding:4px 12px;" onclick="setReviewFilter('${f.v}')">${esc(f.label)}</span>
+  `).join('');
+}
+
+let activeReviewFilter = 'all';
+function setReviewFilter(v){
+  activeReviewFilter = v;
+  renderReviewList();
+}
+
+function openNewReviewFlow(defaultScope = null){
+  reviewScopeChoice = defaultScope || null;   // ← 参数决定预选，null = 不预选
+  reviewScopeManual = [];
+
+  const opts = [];
+  opts.push(`
+    <div class="radio-row ${defaultScope === 'all' ? 'sel' : ''}" data-v="all" onclick="pickReviewScope(this,'all')">
+      <b>○ 全库</b>
+      <div class="desc">${activeDocs().length} 篇文献</div>
+    </div>`);
+
+  Object.entries(DB.projects || {}).forEach(([pid, p]) => {
+    const inProj = activeDocs().filter(d => (p.docs || []).includes(d.id));
+    opts.push(`
+      <div class="radio-row ${defaultScope === pid ? 'sel' : ''}" data-v="${pid}" onclick="pickReviewScope(this,'${pid}')">
+        <b>○ 📁 ${esc(p.name || pid)}</b>
+        <div class="desc">${inProj.length} 篇文献</div>
+      </div>`);
+  });
+
+  opts.push(`
+    <div class="radio-row ${defaultScope === 'manual' ? 'sel' : ''}" data-v="manual" onclick="pickReviewScope(this,'manual')">
+      <b>○ 手动选文献</b>
+      <div class="desc">勾选要纳入的文献</div>
+    </div>`);
+
+  document.getElementById('reviewScopeChoices').innerHTML = opts.join('');
+  document.getElementById('reviewTopicInput').value = '';
+  document.getElementById('newReviewMask').classList.add('active');
+}
+
+function pickReviewScope(el, val){
+  reviewScopeChoice = val;
+  document.querySelectorAll('#reviewScopeChoices .radio-row').forEach(x => x.classList.remove('sel'));
+  el.classList.add('sel');
+  if(val === 'manual') openManualReviewPicker();
+}
+function openManualReviewPicker(){
+  const docs = activeDocs();
+  const html = docs.map(d => `
+    <label class="lib-item"><input type="checkbox" value="${d.id}" onchange="toggleReviewManual('${d.id}', this.checked)"> ${esc(d.title)}</label>
+  `).join('') || '<div style="color:#86909c;font-size:12px;">总库为空</div>';
+
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask active';
+  mask.innerHTML = `<div class="modal">
+    <div class="modal-title">手动选文献</div>
+    <div>${html}</div>
+    <div class="modal-actions"><button onclick="this.closest('.modal-mask').remove()">完成</button></div>
+  </div>`;
+  mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+  document.body.appendChild(mask);
+}
+
+
+function toggleReviewManual(id, checked){
+  if(checked && !reviewScopeManual.includes(id)) reviewScopeManual.push(id);
+  if(!checked) reviewScopeManual = reviewScopeManual.filter(x => x !== id);
+}
+
+async function submitNewReview(){
+  const topic = document.getElementById('reviewTopicInput').value.trim();
+  if(!topic){ alert('请输入综述主题'); return; }
+
+  if(!reviewScopeChoice){
+    alert('请先选择范围');
+    return;
+  }
+  // 范围解析
+  let scope = [];
+  let projectId = null;
+  if(reviewScopeChoice === 'all'){
+    scope = activeDocs().map(d => d.id);
+  } else if(reviewScopeChoice === 'manual'){
+    scope = reviewScopeManual.slice();
+  } else {
+    // 某个项目
+    const p = DB.projects[reviewScopeChoice];
+    scope = (p && p.docs) ? p.docs.slice() : [];
+    projectId = reviewScopeChoice;
+  }
+
+  if(scope.length === 0){ alert('范围内没有文献'); return; }
+
+  // 亮牌确认
+  const ok = await askConfirm({
+    title: '发起综述',
+    message: `主题：${topic}\n范围：${scope.length} 篇\n${projectId ? '项目：' + projectId : '范围：全库'}\n\n亮牌范围 == 实际检索范围，不会自扩库。`,
+    okText: '发起综述'
+  });
+  if(!ok) return;
+    closeModal('newReviewMask');
+
+  // 生成中提示：综述要跑 LLM，可能 30~60 秒
+  const loadingId = 'review_loading_' + Date.now();
+  const loadingEl = document.createElement('div');
+  loadingEl.id = loadingId;
+  loadingEl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+  loadingEl.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:32px 48px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.15);">
+      <div style="font-size:32px;margin-bottom:12px;">✨</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px;">正在生成综述…</div>
+      <div style="font-size:13px;color:#86909c;">多路检索 + LLM 生成论点，约 30~60 秒</div>
+      <div style="font-size:12px;color:#86909c;margin-top:8px;">主题：${esc(topic)} · 范围：${scope.length} 篇</div>
+    </div>`;
+  document.body.appendChild(loadingEl);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/reviews`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ topic: topic, scope: scope, project_id: projectId })
+    });
+    const data = await res.json();
+    document.getElementById(loadingId)?.remove();
+
+    if(!res.ok){
+      alert('生成失败：' + (data.detail || '未知错误'));
+      return;
+    }
+
+       if(data.id){
+      renderReviewList();
+      renderProjectReviews();
+      openReviewDetail(data.id);
+    } else {
+      alert('创建失败：' + (data.detail || '未知错误'));
+    }
+  } catch(err){
+    document.getElementById(loadingId)?.remove();
+    alert('请求失败：' + err.message);
+  }
+}
+
+async function renderProjectReviews(){
+  const wrap = document.getElementById('projReviewList');
+  const cnt = document.getElementById('projReviewCnt');
+  if(!wrap) return;
+
+  try {
+    const projId = DB.currentProject;
+    const res = await fetch(`${API_BASE}/api/reviews?project_id=${encodeURIComponent(projId)}`);
+    const data = await res.json();
+    const list = data.reviews || [];
+
+    if(cnt) cnt.textContent = list.length;
+
+    if(list.length === 0){
+      wrap.innerHTML = '<div style="font-size:12px;color:#86909c;">本项目还没有综述。</div>';
+      return;
+    }
+
+    wrap.innerHTML = list.map(r => `
+      <div class="doc-card" style="cursor:pointer;" onclick="openReviewDetail('${r.id}')">
+        <div class="title">${esc(r.topic)}</div>
+        <div class="meta">${(r.scope || []).length} 篇 · ${esc(r.status || '')}</div>
+        <div class="actions">
+          <button onclick="event.stopPropagation();openReviewDetail('${r.id}')">查看</button>
+          <button onclick="event.stopPropagation();editReview('${r.id}')">编辑</button>
+          <button onclick="event.stopPropagation();softDeleteReview('${r.id}')">🗑 删除</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(err){
+    wrap.innerHTML = `<div style="font-size:12px;color:#f53f3f;">加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+function openNewReviewForProject(){
+  openNewReviewFlow(DB.currentProject);
+}
+// 改主题：走页面内 #topicMask 弹窗，不用 prompt()（被屏蔽后点了没反应）
+let _editReviewId = null;
+async function editReview(id){
+  try{
+    const res = await fetch(`${API_BASE}/api/reviews/${id}`);
+    const r = await res.json();
+    if(!r.id){ alert('综述不存在'); return; }
+    _editReviewId = id;
+    const inp = document.getElementById('topicMaskInput');
+    inp.value = r.topic || '';
+    const err = document.getElementById('topicMaskErr');
+    err.textContent = ''; err.style.display = 'none';
+    document.getElementById('topicMask').classList.add('active');
+    setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  }catch(err){ alert('加载综述失败：' + err.message); }
+}
+async function submitTopicMask(){
+  const errEl = document.getElementById('topicMaskErr');
+  const newTopic = (document.getElementById('topicMaskInput').value || '').trim();
+  if(!_editReviewId){ errEl.textContent = '综述不存在，请重新打开。'; errEl.style.display = 'block'; return; }
+  if(!newTopic){ errEl.textContent = '主题不能为空'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  try{
+    const res = await fetch(`${API_BASE}/api/reviews/${_editReviewId}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ topic: newTopic })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    closeModal('topicMask');
+    renderReviewList();
+    renderProjectReviews();
+  }catch(err){
+    errEl.textContent = '修改失败：' + err.message;
+    errEl.style.display = 'block';
+  }
+}
+async function softDeleteReview(id){
+  const ok = await askConfirm({
+    title: '删除综述',
+    message: '软删除这条综述？\n\n可恢复（通过 /restore 接口）。',
+    okText: '删除',
+    danger: true
+  });
+  if(!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/reviews/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if(data.status === 'deleted'){
+      renderReviewList();
+      renderProjectReviews();
+
+    } else {
+      alert('删除失败：' + (data.detail || '未知错误'));
+    }
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+
+async function openReviewDetail(id){
+  const floatBtn = document.getElementById('reviewFloat');
+  if(floatBtn) floatBtn.remove();
+  try {
+    const res = await fetch(`${API_BASE}/api/reviews/${id}`);
+    const r = await res.json();
+    if(!r.id){ alert('综述不存在'); return; }
+    window.__currentReviewId = r.id;
+    window.__currentReviewTopic = r.topic;
+        const payload = r.points || {};
+    const body = payload.body || '';
+    const references = payload.references || [];
+
+    let bodyHtml = '';
+    if(body){
+      // 把 [n] 变成可点击
+      bodyHtml = esc(body).replace(/\[(\d+)\]/g, (m, n) => {
+        const ref = references.find(x => String(x.index) === n);
+        if(!ref) return m;
+        const doc = docById(ref.doc_id);
+        const title = doc ? doc.title : ref.doc_id;
+        const shortTitle = title.length > 15 ? title.slice(0, 15) + '…' : title;
+        const tooltip = `${shortTitle} ¶${ref.pid || '?'}`;
+        return `<span class="source" style="cursor:pointer;color:#165dff;font-weight:600;"
+                      title="${esc(tooltip)}"
+                      onclick="openQuotePreview('${ref.doc_id}', ${ref.pid || 0})">[${n}]</span>`;
+      });
+    }
+
+    const refsHtml = references.length
+      ? references.map(ref => {
+          const doc = docById(ref.doc_id);
+          const title = doc ? doc.title : ref.doc_id;
+          return `<div style="font-size:13px;margin:6px 0;">
+            <span style="color:#165dff;font-weight:600;">[${ref.index}]</span>
+            <span style="cursor:pointer;color:#165dff;margin-left:6px;"
+                  onclick="openQuotePreview('${ref.doc_id}', ${ref.pid || 0})">
+              ${esc(title)} ¶${ref.pid || '?'}
+            </span>
+          </div>`;
+        }).join('')
+      : '<div style="color:#86909c;font-size:13px;">无引用</div>';
+        // ---- 覆盖度 banner ----
+    const cov = payload.coverage || {};
+    const citedDocs  = cov.cited_docs || [];
+    const notRetrieved = cov.not_retrieved_docs || [];
+    const retrievedNotCited = cov.retrieved_but_not_cited_docs || [];
+    const hitCounts = cov.per_doc_hit_counts || {};
+
+    let coverageBanner = '';
+    if (body && citedDocs.length < (r.scope || []).length) {
+      const total = (r.scope || []).length;
+      const cited = citedDocs.length;
+      coverageBanner = `
+        <div class="banner info" style="margin:10px 0;">
+          📊 本次综述引用了 <b>${total}</b> 篇中的 <b>${cited}</b> 篇。
+          <span style="cursor:pointer;color:#165dff;margin-left:6px;"
+                onclick="this.parentElement.nextElementSibling.style.display='block';this.style.display='none';">
+            查看未引用的 ${total - cited} 篇 ▸
+          </span>
+          <div style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed #ffd591;">
+            ${renderNotCited(notRetrieved, retrievedNotCited, hitCounts)}
+          </div>
+        </div>`;
+    }
+    const pointsHtml = coverageBanner +(body
+      ? `<div style="font-size:15px;line-height:1.9;margin:16px 0;">${bodyHtml}</div>
+         <div style="border-top:1px solid #e5e6eb;padding-top:12px;margin-top:12px;">
+           <div style="font-weight:600;font-size:13px;margin-bottom:8px;">参考文献</div>
+           ${refsHtml}
+         </div>`
+      : '<div style="color:#86909c;font-size:13px;">暂无论点（生成失败或范围内无内容）。</div>');
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask active';
+    mask.innerHTML = `<div class="modal" style="width:640px;">
+      <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">✨ ${esc(r.topic)}</span>
+        <span style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="minimizeReview('${r.id}', '${esc(r.topic).replace(/'/g, '&#39;')}')"
+                  title="缩小到右下角"
+                  style="background:#fff;border:1px solid #e5e6eb;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:13px;">—</button>
+          <button onclick="this.closest('.modal-mask').remove()"
+                  title="关闭"
+                  style="background:#fff;border:1px solid #e5e6eb;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:13px;">✕</button>
+        </span>
+      </div>
+      <div class="banner">⏸ 状态：${esc(r.status)} · 生成于 ${esc(r.created_at || '')} · 范围 ${(r.scope || []).length} 篇</div>
+      ${pointsHtml}
+      <div class="modal-actions">
+        <button onclick="markReviewReviewed('${r.id}', this)">标记为已审阅</button>
+        <button onclick="this.closest('.modal-mask').remove()">关闭</button>
+      </div>
+    </div>`;
+    mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+    document.body.appendChild(mask);
+  } catch(err){
+    alert('加载详情失败：' + err.message);
+  }
+}
+// ============ 综述详情：最小化 / 恢复 ============
+
+// 最小化到右下角浮标
+function minimizeReview(reviewId, topic){
+  // 关掉所有打开的弹窗（综述详情、原文小窗等）
+  document.querySelectorAll('.modal-mask.active').forEach(m => m.classList.remove('active'));
+
+  // 清掉旧的浮标
+  const old = document.getElementById('reviewFloat');
+  if(old) old.remove();
+
+  // 创建浮标
+  const btn = document.createElement('div');
+  btn.id = 'reviewFloat';
+  btn.style.cssText = `
+    position: fixed;
+    right: 24px;
+    bottom: 100px;
+    max-width: 240px;
+    background: #fff7e8;
+    color: #d25f00;
+    border: 1px solid #ffd591;
+    padding: 10px 16px;
+    border-radius: 24px;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(210,95,0,.15);
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .15s;
+  `;
+  btn.innerHTML = `
+    <span>✨</span>
+    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${esc(topic)}</span>
+    <span style="opacity:.6;">↗</span>
+  `;
+  btn.title = '点击恢复综述详情';
+  btn.onmouseenter = () => { btn.style.transform = 'translateY(-2px)'; };
+  btn.onmouseleave = () => { btn.style.transform = ''; };
+  btn.onclick = () => restoreReview(reviewId);
+  document.body.appendChild(btn);
+}
+
+// 从浮标恢复综述详情
+async function restoreReview(reviewId){
+  const btn = document.getElementById('reviewFloat');
+  if(btn) btn.remove();
+  await openReviewDetail(reviewId);
+}
+
+// 手动清除浮标（备用）
+function closeReviewFloat(){
+  const btn = document.getElementById('reviewFloat');
+  if(btn) btn.remove();
+}
+
+function minimizeAllReviewsAndOpenReader(docId, pid){
+  if(window.__currentReviewId){
+    minimizeReview(window.__currentReviewId, window.__currentReviewTopic || '综述');
+  } else {
+    document.querySelectorAll('.modal-mask.active').forEach(m => m.classList.remove('active'));
+  }
+  openReader(docId, pid);
+}
+
+
+async function markReviewReviewed(id, btn){
+  try {
+    const res = await fetch(`${API_BASE}/api/reviews/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ status: 'reviewed' })
+    });
+    const data = await res.json();
+        if(data.id){
+      btn.closest('.modal-mask').remove();
+      renderReviewList();
+      renderProjectReviews();
+      alert('已标记为已审阅');
+    }
+  } catch(err){
+    alert('请求失败：' + err.message);
+  }
+}
+async function openQuotePreview(docId, pid){
+  if(!docId || !pid){ alert('该引用未定位到段落（pid 为空）'); return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/docs/${docId}`);
+    const doc = await res.json();
+    const paras = doc.paragraphs || [];
+    if(pid < 1 || pid > paras.length){
+      alert(`段落号 ¶${pid} 超出范围（本文共 ${paras.length} 段）`);
+      return;
+    }
+
+    const prev = pid > 1 ? paras[pid - 2] : '';
+    const cur = paras[pid - 1];
+    const next = pid < paras.length ? paras[pid] : '';
+
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask active';
+    mask.innerHTML = `<div class="modal" style="width:560px;">
+      <div class="modal-title">📖 ${esc(doc.title)} · ¶${pid}</div>
+      <div style="font-size:13px;color:#86909c;margin:8px 0;">
+        ${prev ? `<div style="opacity:.5;margin-bottom:8px;">${esc(prev)}</div>` : ''}
+        <div style="background:#e8f3ff;padding:10px;border-radius:6px;color:#1f2329;font-size:14px;">
+          <b>¶${pid}</b>　${esc(cur)}
+        </div>
+        ${next ? `<div style="opacity:.5;margin-top:8px;">${esc(next)}</div>` : ''}
+      </div>
+      <div class="modal-actions">
+        <button onclick="minimizeAllReviewsAndOpenReader('${docId}', ${pid})">在阅读页打开</button>
+        <button class="primary" onclick="this.closest('.modal-mask').remove()">关闭</button>
+      </div>
+    </div>`;
+    mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+    document.body.appendChild(mask);
+  } catch(err){
+    alert('加载失败：' + err.message);
+  }
+}
+// ============ 对比（真实数据，来自各篇的深解析结果）============
+// 注意：全程不用 alert() —— 内嵌预览会屏蔽原生弹窗，点了会毫无反应
+function showCmpErr(msg){
+  const e = document.getElementById('cmpPickErr');
+  if(e){ e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; }
+}
+function updateCmpCnt(el){
+  const modal = el.closest('.modal');
+  const all = Array.from(modal.querySelectorAll('#cmpPickList input'));
+  const checked = all.filter(c => c.checked);
+  if(checked.length > 6){
+    el.checked = false;
+    showCmpErr('一次最多对比 6 篇，再多表格放不下。');
+    return;
+  }
+  const cnt = modal.querySelector('#cmpPickCnt');
+  if(cnt) cnt.textContent = String(checked.length);
+  showCmpErr('');
+}
+function openCompare(){
+  const cand = activeDocs();
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask active';
+  mask.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">⚖️ 选择要对比的文献</div>
+      <div style="font-size:13px;color:#86909c;margin-bottom:12px;">
+        至少选 2 篇，最多 6 篇。已选 <b id="cmpPickCnt">0</b> 篇。
+      </div>
+      <div id="cmpPickList">
+        ${cand.length
+          ? cand.map(d => `<label class="lib-item"><input type="checkbox" value="${d.id}" `
+              + `onchange="updateCmpCnt(this)"> ${esc(d.title)}</label>`).join('')
+          : '<div style="color:#86909c;font-size:13px;">库里还没有文献，先上传几篇。</div>'}
+      </div>
+      <div id="cmpPickErr" style="color:#f53f3f;font-size:12px;margin-top:8px;display:none;"></div>
+      <div class="modal-actions">
+        <button onclick="this.closest('.modal-mask').remove()">取消</button>
+        <button class="primary" onclick="confirmCmpPick(this)">确认</button>
+      </div>
+    </div>`;
+  mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+  document.body.appendChild(mask);
+  if(cand.length < 2) showCmpErr('库里不足 2 篇，先上传文献再对比。');
+}
+function confirmCmpPick(btn){
+  const modal = btn.closest('.modal');
+  const checked = Array.from(modal.querySelectorAll('#cmpPickList input:checked'));
+  if(checked.length < 2){ showCmpErr('至少选 2 篇才能对比。'); return; }
+  const ids = checked.map(cb => cb.value);
+  const titles = ids.map(id => (docById(id) || {}).title || id);
+  btn.closest('.modal-mask').remove();
+  document.getElementById('cmpScope').innerHTML =
+    '候选：' + titles.map((t,i) => `<br>📄 ${esc(t)}（${esc(ids[i])}）`).join('');
+  document.getElementById('cmpIntentMask').classList.add('active');
+  window.__cmpDocs = ids;
+}
+
+// 真实渲染：行 = 维度，列 = 文献，每格都带 ¶N 可跳回原文
+function renderCompareTable(data, boxId){
+  const docs = data.docs || [];
+  const dims = data.dimensions || [];
+  if(!dims.length){
+    return `<div class="banner info">这 ${docs.length} 篇文献的深解析结果里没有可对比的维度内容。</div>`;
+  }
+  const head = `<tr><th>维度</th>`
+    + docs.map(d => `<th title="${esc(d.title)}">${esc(d.title)}</th>`).join('') + `</tr>`;
+  const body = dims.map(row => {
+    const cells = row.cells.map(c => {
+      if(!c.has) return `<td style="color:#c9cdd4;">论文中未提及</td>`;
+      const jump = c.pid
+        ? `<div style="margin-top:5px;font-size:12px;">`
+          + `<a href="javascript:void(0)" style="color:#165dff;" `
+          + `onclick="openReader('${esc(c.doc_id)}', ${c.pid})">${esc(c.loc || ('¶' + c.pid))} 跳回原文</a></div>`
+        : '';
+      const q = c.quote
+        ? `<div style="margin-top:4px;font-size:12px;color:#86909c;">原文：「${esc(c.quote)}」</div>`
+        : '';
+      return `<td>${esc(c.text)}${jump}${q}</td>`;
+    }).join('');
+    return `<tr><td><b>${esc(row.dimension)}</b></td>${cells}</tr>`;
+  }).join('');
+  const cov = data.coverage || {};
+  const empt = (data.empty_dimensions || []).length
+    ? `<div style="font-size:12px;color:#86909c;margin-top:8px;">`
+      + `两篇都未提及、已隐藏的维度：${data.empty_dimensions.map(esc).join('、')}</div>`
+    : '';
+  const sumBox = boxId
+    ? `<div id="${boxId}" style="margin-top:12px;padding:12px 14px;background:#f7f8fa;`
+      + `border:1px solid #e5e6eb;border-radius:8px;font-size:13px;line-height:1.7;">`
+      + `<div style="color:#86909c;">⏳ 正在生成对比总结…</div></div>`
+    : '';
+  return `<div class="banner info">已对比 ${docs.length} 篇 · ${dims.length} 个维度`
+    + ` · 有内容 ${cov.filled}/${cov.total}（${cov.percent}%）</div>`
+    + `<div style="overflow-x:auto;"><table class="cmp">${head}${body}</table></div>`
+    + empt
+    + sumBox
+    + `<div style="font-size:12px;color:#86909c;margin-top:8px;">`
+    + `内容全部来自这 ${docs.length} 篇各自的深解析结果，没解析出来的一律显示「论文中未提及」，不推测。</div>`;
+}
+
+// 表格先出来，总结后到：单独请求 /compare/summarize，失败也不影响表格
+async function loadCompareSummary(ids, boxId){
+  const box = document.getElementById(boxId);
+  if(!box) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/compare/summarize`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ doc_ids: ids })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    box.innerHTML = `<div style="font-weight:500;margin-bottom:6px;">📝 对比总结</div>`
+      + `<div>${esc(data.summary).replace(/\n/g, '<br>')}</div>`;
+  }catch(err){
+    box.innerHTML = `<div style="color:#86909c;">对比总结生成失败：${esc(err.message)}`
+      + `（对比表格不受影响）</div>`;
+  }
+}
+
+async function runCompare(){
+  closeModal('cmpIntentMask');
+  const ids = window.__cmpDocs || [];
+  if(ids.length < 2){ logMsg('a', '❌ 至少选 2 篇才能对比。'); return; }
+  logMsg('a', `⏳ 正在对比 ${ids.length} 篇…`);
+  try{
+    const res = await fetch(`${API_BASE}/api/compare`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ doc_ids: ids })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    const boxId = 'cmpSum' + Date.now();
+    logMsg('a', renderCompareTable(data, boxId));
+    loadCompareSummary(ids, boxId);          // 不 await：表格先渲染，总结随后填进来
+  }catch(err){
+    logMsg('a', `❌ 对比失败：${esc(err.message)}`);
+  }
+}
+
+// ============ 知识库（走 /api/knowledge 持久化）============
+const KB_TYPE_NAME = { note:'笔记', qa:'问答', term:'术语卡片', manual:'手动创建' };
+
+async function loadKnowledgeFromAPI(){
+  try{
+    const res = await fetch(`${API_BASE}/api/knowledge`);
+    const data = await res.json();
+    DB.knowledge = data.knowledge || [];
+  }catch(err){
+    console.error('知识库加载失败：', err);
+    DB.knowledge = [];
+  }
+}
+
+function renderKB(){
+  const box = document.getElementById('kbList');
+  const cnt = document.getElementById('wbKbCnt');
+  if(cnt) cnt.textContent = DB.knowledge.length;
+  if(!box) return;
+
+  if(!DB.knowledge.length){
+    box.innerHTML = '<div style="color:#86909c;">空状态：去问答 / 笔记里收藏，'
+      + '知识 = 可复用、可追溯、可组合的论断 + 来源。</div>';
+    return;
+  }
+
+  box.innerHTML = DB.knowledge.map(k => {
+    const t = k.source_doc_id ? docById(k.source_doc_id) : null;
+    const docName = t ? t.title : (k.source_doc_id || '');
+    const canJump = !!k.source_doc_id;
+    const tags = (k.tags || []).length
+      ? k.tags.map(x => `<span class="tag" style="margin-right:4px;">#${esc(x)}</span>`).join('')
+      : '—';
+    return `<div class="kb-item">
+      <div class="claim">${esc(k.claim)}</div>
+      ${canJump
+        ? `<div class="source" style="cursor:pointer;display:block;margin-top:4px;" `
+          + `onclick="openReader('${esc(k.source_doc_id)}', ${k.source_pid || 1})">`
+          + `📄 ${esc(docName)}${k.source_pid ? ' ¶' + k.source_pid : ''} · 点击跳回原文</div>`
+        : `<div class="source" style="display:block;margin-top:4px;color:#c9cdd4;">`
+          + `${esc(KB_TYPE_NAME[k.source_type] || k.source_type || '手动创建')} · 无关联文献</div>`}
+      ${k.source_quote
+        ? `<div style="font-size:12px;color:#86909c;margin-top:4px;">原文：「${esc(k.source_quote)}」</div>`
+        : ''}
+      <div class="meta" style="margin-top:4px;">类型：${esc(KB_TYPE_NAME[k.source_type] || k.source_type || '—')}`
+        + ` · ${esc((k.created_at || '').slice(0, 16))} · 标签：${tags}</div>
+      <div class="actions" style="margin-top:6px;">
+        <button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0 6px 0 0;"
+                onclick="editKB('${esc(k.id)}')">✏️ 编辑</button>
+        <button class="add-doc-btn" style="width:auto;display:inline;padding:3px 12px;margin:0;color:#f53f3f;"
+                onclick="delKB('${esc(k.id)}')">🗑 删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function delKB(kid){
+  const ok = await askConfirm({
+    title: '删除知识单元',
+    message: '删除这条知识？（软删，数据库里仍保留，列表不再显示）',
+    okText: '删除',
+    danger: true
+  });
+  if(!ok) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/knowledge/${kid}`, { method: 'DELETE' });
+    if(!res.ok) throw new Error(((await res.json()).detail) || ('HTTP ' + res.status));
+    await loadKnowledgeFromAPI();
+    renderKB(); renderDocList();
+  }catch(err){ alert('删除失败：' + err.message); }
+}
+
+// ---- 新建 / 编辑弹窗（页面内，不用 prompt）----
+let _kbEditing = null;
+let _kbPayload = {};
+
+function showKbErr(msg){
+  const e = document.getElementById('kbErr');
+  if(!e) return;
+  e.textContent = msg || '';
+  e.style.display = msg ? 'block' : 'none';
+}
+function renderKbSourceHint(){
+  const el = document.getElementById('kbSourceHint');
+  if(!el) return;
+  const p = _kbPayload;
+  if(p.source_doc_id){
+    const t = docById(p.source_doc_id);
+    el.innerHTML = `来源：📄 ${esc(t ? t.title : p.source_doc_id)}`
+      + `${p.source_pid ? ' ¶' + p.source_pid : ''}`
+      + (p.source_quote ? `<br>原文摘录：${esc(String(p.source_quote).slice(0, 120))}` : '')
+      + `<br><span style="color:#165dff;">保存后可在卡片上点「跳回原文」回到这一段。</span>`;
+  }else{
+    el.innerHTML = '来源：无关联文献（术语卡片 / 手动创建），保存后不显示「跳回原文」。';
+  }
+}
+function openKbMask(payload){
+  _kbEditing = null;
+  _kbPayload = payload || {};
+  document.getElementById('kbMaskTitle').textContent = '📌 收藏为知识';
+  document.getElementById('kbClaimInput').value = payload.claim || '';
+  document.getElementById('kbTagsInput').value = (payload.tags || []).join(', ');
+  renderKbSourceHint();
+  showKbErr('');
+  document.getElementById('kbMask').classList.add('active');
+}
+async function editKB(kid){
+  const k = DB.knowledge.find(x => x.id === kid);
+  if(!k){ alert('知识条目不存在'); return; }
+  _kbEditing = kid;
+  _kbPayload = {
+    source_type: k.source_type,
+    source_doc_id: k.source_doc_id,
+    source_pid: k.source_pid,
+    source_quote: k.source_quote,
+    source_note_id: k.source_note_id,
+    source_session_id: k.source_session_id,
+    project_id: k.project_id
+  };
+  document.getElementById('kbMaskTitle').textContent = '✏️ 编辑知识条目';
+  document.getElementById('kbClaimInput').value = k.claim || '';
+  document.getElementById('kbTagsInput').value = (k.tags || []).join(', ');
+  renderKbSourceHint();
+  showKbErr('');
+  document.getElementById('kbMask').classList.add('active');
+}
+async function submitKbMask(){
+  const claim = (document.getElementById('kbClaimInput').value || '').trim();
+  if(!claim){ showKbErr('论断内容不能为空'); return; }
+  const tags = (document.getElementById('kbTagsInput').value || '')
+    .split(/[,，]/).map(x => x.trim()).filter(Boolean);
+  const body = Object.assign({}, _kbPayload, { claim, tags });
+  try{
+    const url = _kbEditing
+      ? `${API_BASE}/api/knowledge/${_kbEditing}`
+      : `${API_BASE}/api/knowledge`;
+    const res = await fetch(url, {
+      method: _kbEditing ? 'PUT' : 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    closeModal('kbMask');
+    await loadKnowledgeFromAPI();
+    renderKB(); renderDocList();
+  }catch(err){ showKbErr('保存失败：' + err.message); }
+}
+
+// ============ 项目（走 /api/projects 持久化）============
+const curProject = () => DB.projects[DB.currentProject] || null;
+
+async function loadProjects(){
+  try{
+    const res = await fetch(`${API_BASE}/api/projects`);
+    const data = await res.json();
+    const list = data.projects || [];
+    DB.projects = {};
+    list.forEach(p => { DB.projects[p.id] = { id:p.id, name:p.name, docs:p.docs || [] }; });
+    // 没有项目时自动建一个默认项目，避免项目页空白
+    if(!list.length){
+      const r = await fetch(`${API_BASE}/api/projects`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name:'我的第一个项目' })
+      });
+      if(r.ok){
+        const p = await r.json();
+        DB.projects[p.id] = { id:p.id, name:p.name, docs:[] };
+      }
+    }
+    if(!DB.projects[DB.currentProject]){
+      DB.currentProject = Object.keys(DB.projects)[0] || null;
+    }
+  }catch(err){
+    console.error('❌ 加载项目失败：', err);
+  }
+  renderWbProjectList();
+}
+
+// 「继续阅读」必须来自真实阅读记录：库里没有的文献不能出现在侧栏
+function renderWbContinue(){
+  const wrap = document.getElementById('wbContinue');
+  if(!wrap) return;
+  const r = LAST_READ;
+  const d = r ? docById(r.doc) : null;
+  wrap.innerHTML = d
+    ? `<div class="entry" onclick="openReader('${d.id}',${r.pid})">《${esc(d.title)}》· 上次读到 ¶${r.pid}</div>`
+    : '<div style="font-size:12px;color:#86909c;padding:2px 0;">还没有阅读记录</div>';
+}
+
+function renderWbProjectList(){
+  const wrap = document.getElementById('wbProjectList');
+  if(!wrap) return;
+  const ids = Object.keys(DB.projects || {});
+  wrap.innerHTML = ids.length
+    ? ids.map(id => {
+        const p = DB.projects[id];
+        const on = id === DB.currentProject ? ' style="background:#e8f3ff;border-radius:4px;"' : '';
+        return `<div class="entry"${on} onclick="switchProject('${id}')">${esc(p.name)}（${p.docs.length}）</div>`;
+      }).join('')
+    : '<div style="font-size:12px;color:#86909c;">还没有项目</div>';
+}
+
+function switchProject(id){
+  DB.currentProject = id;
+  renderWbProjectList();
+  renderProjectDocs();
+  renderProjectReviews();
+  showPage('project');
+}
+
+// 项目命名弹窗：mode='create' | 'rename'
+let _projMaskMode = 'create';
+
+function openProjMask(mode, preset){
+  _projMaskMode = mode;
+  document.getElementById('projMaskTitle').textContent = mode === 'rename' ? '重命名项目' : '新建项目';
+  const inp = document.getElementById('projMaskInput');
+  inp.value = preset || '';
+  document.getElementById('projMaskErr').style.display = 'none';
+  document.getElementById('projMask').classList.add('active');
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+async function submitProjMask(){
+  const name = (document.getElementById('projMaskInput').value || '').trim();
+  const errEl = document.getElementById('projMaskErr');
+  if(!name){
+    errEl.textContent = '请输入项目名称';
+    errEl.style.display = 'block';
+    return;
+  }
+  // 前端先拦一次重名（后端 projects.name 也有唯一约束，双保险）
+  const excludeId = (_projMaskMode === 'rename' && curProject()) ? curProject().id : null;
+  const dup = Object.values(DB.projects || {}).find(p => p.name === name && p.id !== excludeId);
+  if(dup){
+    errEl.textContent = `项目名已存在：${name}。请换个名字（项目名不允许重复）。`;
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  if(_projMaskMode === 'rename') await _doRenameProject(name);
+  else await _doCreateProject(name);
+}
+
+async function createProject(){
+  openProjMask('create', '');
+}
+
+async function _doCreateProject(name){
+  try{
+    const res = await fetch(`${API_BASE}/api/projects`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name })
+    });
+    if(!res.ok) throw new Error((await res.json()).detail || res.status);
+    const p = await res.json();
+    DB.projects[p.id] = { id:p.id, name:p.name, docs:[] };
+    DB.currentProject = p.id;
+    closeModal('projMask');
+    renderWbProjectList();
+    renderProjectDocs();
+    renderProjectReviews();
+    showPage('project');
+  }catch(err){
+    const e = document.getElementById('projMaskErr');
+    e.textContent = '新建失败：' + err.message + '（请确认后端已启动）';
+    e.style.display = 'block';
+  }
+}
+
+async function renameCurrentProject(){
+  const p = curProject(); if(!p) return;
+  openProjMask('rename', p.name);
+}
+
+async function _doRenameProject(name){
+  const p = curProject(); if(!p) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/projects/${p.id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name })
+    });
+    if(!res.ok) throw new Error((await res.json()).detail || res.status);
+    p.name = name;
+    closeModal('projMask');
+    renderWbProjectList();
+    renderProjectDocs();
+  }catch(err){
+    const e = document.getElementById('projMaskErr');
+    e.textContent = '重命名失败：' + err.message;
+    e.style.display = 'block';
+  }
+}
+
+async function deleteCurrentProject(){
+  const p = curProject();
+  if(!p){ alert('当前没有选中的项目，先在左栏点一个项目。'); return; }
+  const ok = await askConfirm({
+    title: '删除项目',
+    message: `彻底删除项目《${p.name}》？\n\n· 只解绑项目与文献的关系\n· 文献本身仍在总库中，不会丢\n· 此操作不可恢复`,
+    okText: '删除项目',
+    danger: true
+  });
+  if(!ok) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/projects/${p.id}?confirm=true`, { method:'DELETE' });
+    if(!res.ok) throw new Error((await res.json()).detail || res.status);
+    delete DB.projects[p.id];
+    DB.currentProject = Object.keys(DB.projects)[0] || null;
+    await loadProjects();
+    renderProjectDocs();
+    renderProjectReviews();
+  }catch(err){ alert('删除失败：' + err.message); }
+}
+
+// ============ 项目页 ============
+function renderProjectDocs(){
+  const titleEl = document.getElementById('projChatTitle');
+  const p = curProject();
+  if(titleEl){
+    titleEl.textContent = `💬 项目对话 · ${p ? p.name : '未选择项目'}`;
+  }
+  const wrap=document.getElementById('projectDocs'); if(!wrap)return;
+  if(!p){
+    wrap.innerHTML='<div style="font-size:12px;color:#86909c;">还没有项目，请在左栏点「➕ 新建项目」。</div>';
+    return;
+  }
+  const ids=p.docs||[];
+  wrap.innerHTML=ids.length?ids.map(id=>{
+    const d=docById(id); if(!d)return '';
+    return `<div class="doc-card" data-doc="${id}" onclick="openReader('${id}')" style="cursor:pointer;" title="点卡片进入阅读">
+      <div class="title">${esc(d.title)}</div>
+      <div class="actions">
+        <button onclick="event.stopPropagation();openSummary('${id}')">速读</button>
+        <button onclick="event.stopPropagation();openReader('${id}')">阅读</button>
+        <button onclick="event.stopPropagation();removeDoc(this,'${id}')">移除</button>
+      </div></div>`;
+  }).join(''):'<div style="font-size:12px;color:#86909c;">项目内还没有文献，点上面「➕ 从总库托入」添加。</div>';
+}
+
+// 把内存里的 docs 列表写回后端（移除 ≠ 删除，总库保留）
+async function persistProjectDocs(){
+  const p = curProject(); if(!p) return;
+  try{
+    await fetch(`${API_BASE}/api/projects/${p.id}/docs`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ doc_ids: p.docs })
+    });
+  }catch(err){ console.error('项目文献回写失败：', err); }
+}
+
+async function initProjectDocs(){
+  const p=curProject();
+  // 空项目首次进入时自动托入前 2 篇，避免 demo 空白；已持久化，刷新不会重复
+  if(p&&!p.docs.length&&activeDocs().length){
+    p.docs=activeDocs().slice(0,2).map(d=>d.id);
+    await persistProjectDocs();
+    renderWbProjectList();
+  }
+  renderProjectDocs();
+  renderProjectReviews();
+}
+
+function openAddDoc(){
+  // value 必须是 id 而不是 title：项目范围过滤、点开阅读都按 id 走
+  document.getElementById('libraryList').innerHTML=activeDocs().map(d=>
+    `<label class="lib-item"><input type="checkbox" value="${d.id}"> ${esc(d.title)}</label>`).join('')
+    || '<div style="font-size:12px;color:#86909c;">总库为空，先去知识库页上传文献。</div>';
+  document.getElementById('addDocMask').classList.add('active');
+}
+async function confirmAddDoc(){
+  const checked=document.querySelectorAll('#libraryList input:checked');
+  if(!checked.length)return alert('请至少勾选一篇');
+  const p=curProject();
+  if(!p)return alert('还没有项目，请先新建项目。');
+  const skip=[];
+  checked.forEach(cb=>{
+    const id=cb.value;
+    if(p.docs.includes(id)){skip.push(id);return;}
+    p.docs.push(id);
+  });
+  await persistProjectDocs();
+  renderWbProjectList();
+  renderProjectDocs();
+  if(skip.length)alert('以下文献已在项目中，跳过：\n'+skip.map(id=>'《'+(docById(id)?.title||id)+'》').join('\n'));
+  closeModal('addDocMask');
+}
+async function removeDoc(btn,id){
+  const t=docById(id)?.title||id;
+  const ok = await askConfirm({
+    title: '从项目移除',
+    message: `从项目移除《${t}》？\n\n移除 ≠ 删除，总库保留。`,
+    okText: '移除'
+  });
+  if(ok){
+    const p=curProject(); if(!p)return;
+    p.docs=p.docs.filter(x=>x!==id);
+    await persistProjectDocs();
+    renderWbProjectList();
+    renderProjectDocs();
+  }
+}
+
+// ============ 标签（独立表：带颜色 / 改名 / 全局删除）============
+let tagDocId = null;
+let _tagRenameArmed = false;
+const TAG_COLORS = ['#378ADD', '#1D9E75', '#BA7517', '#7F77DD',
+                    '#D85A30', '#D4537E', '#639922', '#888780'];
+
+async function loadTagsFromAPI(){
+  try{
+    const res = await fetch(`${API_BASE}/api/tags`);
+    if(res.status === 404){                 // 后端是旧代码，根本没有标签接口
+      DB.tags = [];
+      BACKEND_STALE = true;
+      return;
+    }
+    const data = await res.json();
+    DB.tags = data.tags || [];
+    BACKEND_STALE = false;
+  }catch(err){
+    console.error('标签加载失败：', err);
+    DB.tags = [];
+  }
+}
+const tagById = id => DB.tags.find(t => t.id === id);
+
+// 覆盖式保存某篇文献的标签（后端保证状态类互斥 / 新标签自动创建）
+async function saveDocTags(docId, names){
+  const res = await fetch(`${API_BASE}/api/docs/${docId}/tags`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ tags: names })
+  });
+  if(res.status === 404)
+    throw new Error('后端没有这个接口（404）——它跑的还是旧代码，请重启后端后再试');
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+  return data.tags || [];
+}
+
+// 只刷新各文献的 tags，不动其他字段（避免整表重载丢状态）
+async function refreshDocTags(){
+  try{
+    const res = await fetch(`${API_BASE}/api/docs`);
+    const data = await res.json();
+    const map = {};
+    (data.docs || []).forEach(d => { map[d.id] = d.tags || []; });
+    DB.docs.forEach(d => { if(map[d.id] !== undefined) d.tags = map[d.id]; });
+  }catch(err){ console.error('刷新标签失败：', err); }
+}
+
+async function openTagModal(docId){
+  tagDocId = docId;
+  const d = docById(docId);
+  const t = document.getElementById('tagDocTitle');
+  if(t) t.textContent = d ? d.title : docId;
+  const inp = document.getElementById('tagNewInput');
+  if(inp) inp.value = '';
+  await loadTagsFromAPI();
+  renderTagCurrent();
+  renderTagAll();
+  renderTagSelect();
+  renderTagColors();
+  resetTagRename();
+  showTagOpErr('');
+  const warn = document.getElementById('tagStaleWarn');
+  if(warn){
+    warn.style.display = BACKEND_STALE ? 'block' : 'none';
+    if(BACKEND_STALE) warn.innerHTML = '⚠️ <b>标签功能不可用</b>：后端没有 <code>/api/tags</code> 接口（404），'
+      + '说明 5000 端口上跑的还是<b>旧代码</b>。<br>请在 PyCharm 里停掉后端再启动一次：<br>'
+      + '<code style="background:#fff;padding:2px 4px;border-radius:3px;">python -m uvicorn backend.main:app --host 127.0.0.1 --port 5000 --reload</code>';
+  }
+  document.getElementById('tagMask').classList.add('active');
+}
+
+function renderTagCurrent(){
+  const d = docById(tagDocId);
+  const box = document.getElementById('tagCurrent');
+  if(!box) return;
+  const tags = (d && d.tags) || [];
+  box.innerHTML = tags.length
+    ? tags.map(t => {
+        const c = t.color || '#86909c';
+        return `<span class="tag" data-t="${esc(tagNameOf(t))}" onclick="removeTag(this.dataset.t)" `
+             + `title="点击移除" style="background:${c};color:#fff;margin-right:6px;margin-bottom:6px;cursor:pointer;">`
+             + `${esc(tagNameOf(t))} ✕</span>`;
+      }).join('')
+    : '<span style="color:#86909c;font-size:13px;">暂无标签</span>';
+}
+
+function renderTagAll(){
+  const box = document.getElementById('tagAll');
+  if(!box) return;
+  const d = docById(tagDocId);
+  const cur = new Set(((d && d.tags) || []).map(tagKeyOf));
+  box.innerHTML = DB.tags.length
+    ? DB.tags.map(t => {
+        const on = cur.has(t.id);
+        const c = t.color || '#86909c';
+        const style = on ? `background:${c};color:#fff;`
+                         : `color:${c};border:1px solid ${c};opacity:.75;background:transparent;`;
+        return `<span class="tag" data-t="${esc(t.id)}" onclick="toggleTag(this.dataset.t)" `
+             + `style="${style}margin-right:6px;margin-bottom:6px;cursor:pointer;">`
+             + `${esc(t.name)}${t.kind === 'status' ? ' · 状态' : ''}</span>`;
+      }).join('')
+    : '<span style="color:#86909c;font-size:13px;">还没有任何标签</span>';
+}
+
+async function toggleTag(tagId){
+  if(BACKEND_STALE){ showTagOpErr('后端是旧代码（/api/tags 404），重启后端后才能用标签'); return; }
+  const d = docById(tagDocId);
+  if(!d) return;
+  const t = tagById(tagId);
+  const key = t ? t.name : tagId;                 // 一律传名字，不传 id
+  const cur = ((d.tags) || []).map(tagNameOf);
+  const next = cur.includes(key) ? cur.filter(x => x !== key) : [...cur, key];
+  try{
+    d.tags = await saveDocTags(tagDocId, next);
+    await loadTagsFromAPI();
+    renderTagCurrent(); renderTagAll(); renderTagColors();
+    renderDocList(); renderTagFilter();
+    showTagOpErr('');
+  }catch(err){ showTagOpErr('更新失败：' + err.message); }
+}
+
+async function removeTag(tagKey){
+  const d = docById(tagDocId);
+  if(!d) return;
+  const next = ((d.tags) || []).map(tagNameOf).filter(x => x !== tagKey);
+  try{
+    d.tags = await saveDocTags(tagDocId, next);
+    await loadTagsFromAPI();
+    renderTagCurrent(); renderTagAll(); renderTagColors();
+    renderDocList(); renderTagFilter();
+  }catch(err){ showTagOpErr('移除失败：' + err.message); }
+}
+
+async function addTagFromInput(e){
+  if(e.key !== 'Enter') return;
+  if(BACKEND_STALE){ showTagOpErr('后端是旧代码（/api/tags 404），重启后端后才能用标签'); return; }
+  const val = (e.target.value || '').trim();
+  if(!val) return;
+  const d = docById(tagDocId);
+  if(!d) return;
+  const cur = ((d.tags) || []).map(tagNameOf);
+  if(cur.some(x => x === val)){
+    showTagOpErr('标签已存在：' + val);
+    return;
+  }
+  try{
+    d.tags = await saveDocTags(tagDocId, [...cur, val]);
+    await loadTagsFromAPI();
+    e.target.value = '';
+    showTagOpErr('');
+    renderTagCurrent(); renderTagAll(); renderTagSelect(); renderTagColors();
+    renderDocList(); renderTagFilter();
+  }catch(err){ showTagOpErr('添加失败：' + err.message); }
+}
+
+function renderTagSelect(){
+  const sel = document.getElementById('tagOpSelect');
+  if(!sel) return;
+  sel.innerHTML = DB.tags.length
+    ? DB.tags.map(t => `<option value="${esc(t.id)}">${esc(t.name)}`
+        + `${t.kind === 'status' ? '（状态）' : ''} · ${t.doc_count || 0} 篇</option>`).join('')
+    : '<option value="">（还没有任何标签）</option>';
+}
+
+function renderTagColors(){
+  const box = document.getElementById('tagColorRow');
+  if(!box) return;
+  const sel = document.getElementById('tagOpSelect');
+  const cur = tagById(sel && sel.value);
+  box.innerHTML = TAG_COLORS.map(c => {
+    const on = cur && cur.color && String(cur.color).toLowerCase() === c.toLowerCase();
+    return `<span data-c="${c}" onclick="applyTagColor('${c}')" title="${c}" `
+         + `style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c};`
+         + `cursor:pointer;margin-right:6px;${on ? 'outline:2px solid #165dff;outline-offset:2px;' : ''}"></span>`;
+  }).join('');
+}
+
+async function applyTagColor(color){
+  const sel = document.getElementById('tagOpSelect');
+  const id = sel && sel.value;
+  if(!id){ showTagOpErr('先在下拉里选一个标签'); return; }
+  try{
+    const res = await fetch(`${API_BASE}/api/tags/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ color })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    await loadTagsFromAPI();
+    renderTagCurrent(); renderTagAll(); renderTagColors();
+    renderDocList(); renderTagFilter();
+    showTagOpErr('');
+  }catch(err){ showTagOpErr('改颜色失败：' + err.message); }
+}
+
+function showTagOpErr(msg){
+  const e = document.getElementById('tagOpErr');
+  if(!e) return;
+  e.textContent = msg || '';
+  e.style.display = msg ? 'block' : 'none';
+}
+function resetTagRename(){
+  _tagRenameArmed = false;
+  const row = document.getElementById('tagRenameRow');
+  if(row) row.style.display = 'none';
+  const btn = document.getElementById('tagRenameBtn');
+  if(btn) btn.textContent = '改名';
+  const inp = document.getElementById('tagNewNameInput');
+  if(inp) inp.value = '';
+}
+
+// 改名：两段式（第一次点展开输入框，第二次点才执行），不用 prompt()
+async function applyTagRename(){
+  const sel = document.getElementById('tagOpSelect');
+  const id = sel && sel.value;
+  if(!id){ showTagOpErr('先在下拉里选一个标签'); return; }
+  const old = tagById(id);
+  if(!old){ showTagOpErr('标签不存在，请重新打开'); return; }
+
+  if(!_tagRenameArmed){
+    _tagRenameArmed = true;
+    document.getElementById('tagRenameRow').style.display = 'block';
+    document.getElementById('tagRenameBtn').textContent = '确认改名';
+    const inp = document.getElementById('tagNewNameInput');
+    inp.value = old.name;
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+    return;
+  }
+
+  const newName = (document.getElementById('tagNewNameInput').value || '').trim();
+  if(!newName){ showTagOpErr('新标签名不能为空'); return; }
+  if(newName === old.name){ showTagOpErr('新名字和原来一样，未做改动'); return; }
+
+  const ok = await askConfirm({
+    title: '全局改名标签',
+    message: `「${old.name}」→「${newName}」\n\n影响 ${old.doc_count || 0} 篇文献。\n\n确认执行？`
+  });
+  if(!ok) return;
+
+  try{
+    const res = await fetch(`${API_BASE}/api/tags/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: newName })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    resetTagRename();
+    await loadTagsFromAPI();
+    await refreshDocTags();
+    renderTagCurrent(); renderTagAll(); renderTagSelect(); renderTagColors();
+    renderDocList(); renderTagFilter();
+    showTagOpErr('');
+  }catch(err){ showTagOpErr('改名失败：' + err.message); }
+}
+
+async function applyTagDelete(){
+  const sel = document.getElementById('tagOpSelect');
+  const id = sel && sel.value;
+  if(!id){ showTagOpErr('先在下拉里选一个标签'); return; }
+  const t = tagById(id);
+  if(!t){ showTagOpErr('标签不存在，请重新打开'); return; }
+
+  const ok = await askConfirm({
+    title: '全局删除标签',
+    message: `删除标签「${t.name}」\n\n有 ${t.doc_count || 0} 篇文献正在使用，删除后都会解绑。\n\n文献本身不受影响。确认删除？`,
+    okText: '删除标签',
+    danger: true
+  });
+  if(!ok) return;
+
+  try{
+    const res = await fetch(`${API_BASE}/api/tags/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
+    resetTagRename();
+    await loadTagsFromAPI();
+    await refreshDocTags();
+    renderTagCurrent(); renderTagAll(); renderTagSelect(); renderTagColors();
+    renderDocList(); renderTagFilter();
+    showTagOpErr('');
+  }catch(err){ showTagOpErr('删除失败：' + err.message); }
+}
+
+function renderTagFilter(){
+  const wrap = document.getElementById('wbTagFilter');
+  if(!wrap) return;
+  const used = DB.tags.filter(t => (t.doc_count || 0) > 0);
+  // 后端不可用时（离线示例）退回字符串标签
+  const fallback = used.length ? []
+    : [...new Set(DB.docs.flatMap(d => (d.tags || []).map(tagNameOf)))].filter(Boolean);
+  if(!used.length && !fallback.length){ wrap.innerHTML = ''; return; }
+
+  const chips = used.length
+    ? used.map(t => {
+        const on = activeTagFilter === t.id;
+        const c = t.color || '#86909c';
+        const style = on ? `background:${c};color:#fff;`
+                         : `color:${c};border:1px solid ${c};opacity:.75;background:transparent;`;
+        return `<span class="tag" style="${style}cursor:pointer;margin-right:6px;margin-bottom:6px;" `
+             + `onclick="setTagFilter('${esc(t.id)}')">${esc(t.name)} ${t.doc_count}</span>`;
+      }).join('')
+    : fallback.map(n => `<span class="tag ${activeTagFilter === n ? 'ok' : ''}" `
+        + `style="cursor:pointer;margin-right:6px;" onclick="setTagFilter('${esc(n)}')">${esc(n)}</span>`).join('');
+
+  const allOn = activeTagFilter === '';
+  wrap.innerHTML = `<span class="tag ${allOn ? 'ok' : ''}" style="cursor:pointer;margin-right:6px;" `
+    + `onclick="setTagFilter('')">全部</span>` + chips;
+}
+
+function setTagFilter(tag){
+  activeTagFilter = tag;
+  renderTagFilter();
+  renderDocList();
+}
+document.getElementById('tagNewInput').addEventListener('keydown', addTagFromInput);
+
+// ============ 初始化 ============
+// 先探一次后端版本：旧代码的 /api/tags 会 404，提前挂横幅，避免用户对着空下拉猜
+// 逐个端口试 /api/tags：200 = 新代码（用它），404 = 旧代码（跳过），
+// 连不上 = 这个端口没服务（跳过）。全都不行才挂横幅。
+const BACKEND_READY = (async function pickBackend(){
+  for(const port of API_PORTS){
+    try{
+      const res = await fetch(`http://127.0.0.1:${port}/api/tags`, { cache: 'no-store' });
+      if(res.status === 404) continue;              // 端口开着但是旧代码
+      API_BASE = `http://127.0.0.1:${port}`;
+      console.log('[backend] 已连接到 ' + API_BASE);
+      return true;
+    }catch(err){ /* 这个端口没开，试下一个 */ }
+  }
+  BACKEND_STALE = true;                             // 所有候选端口都没有新后端
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;padding:10px 16px;'
+    + 'background:#f53f3f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+  bar.innerHTML = '⚠️ <b>没找到新版本的后端</b>：' + API_PORTS.join(' / ')
+    + ' 端口上都没有 <code>/api/tags</code> 接口。'
+    + '请启动后端：<b>python -m uvicorn backend.main:app --host 127.0.0.1 --port 5001 --reload</b>'
+    + '　<span style="opacity:.8;">（或双击 restart_backend.bat 重启 5000，改好后刷新本页）</span>';
+  document.body.appendChild(bar);
+  return false;
+})();
+
+renderNotesOverview();
+renderKB();
+document.querySelector('.chat-ball').style.display = 'none';
+// 项目必须先于文献加载：initProjectDocs 会把文献托进当前项目
+(async () => {
+  await BACKEND_READY;                 // 先确定用哪个端口，再拉数据
+  await loadProjects();
+  await loadTagsFromAPI();
+  await loadDocsFromAPI();
+  await loadKnowledgeFromAPI();
+  renderWbContinue();
+})();
+loadNotesFromAPI();
+</script>
+</body>
+</html>

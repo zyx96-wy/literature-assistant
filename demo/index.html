@@ -183,9 +183,24 @@
   .chat-ball-panel .cb-input { padding: 10px 12px; border-top: 1px solid #f2f3f5; display: flex; gap: 6px; }
   .chat-ball-panel .cb-input input { flex: 1; border: 1px solid #e5e6eb; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; }
   .chat-ball-panel .cb-input button { background: #165dff; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+
+/* ===== 页面内轻提示 toast：替代会被屏蔽的 alert() ===== */
+#toastWrap{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.toast{max-width:min(560px,86vw);padding:9px 14px;border-radius:8px;font-size:13px;line-height:1.55;color:#fff;background:#1d2129;box-shadow:0 4px 16px rgba(0,0,0,.20);white-space:pre-line;word-break:break-word;animation:toastIn .18s ease;}
+.toast.success{background:#00b42a;}
+.toast.error{background:#f53f3f;}
+.toast.warn{background:#ff7d00;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}
+/* ===== 未实现的功能：视觉上明确标出，不假装能用 ===== */
+.todo{opacity:.45;}
+.todo::after{content:'未实现';font-size:10px;margin-left:5px;border:1px solid currentColor;border-radius:3px;padding:0 3px;vertical-align:middle;}
+/* 中英对照：默认只显示原文，点「中/EN」切换显示译文 */
+#readerContent .translation{display:block;margin-top:6px;padding:6px 10px;background:#f7f8fa;border-left:3px solid #e5e6eb;border-radius:4px;color:#4e5969;}
+#readerContent.hide-translation .translation{display:none;}
 </style>
 </head>
 <body>
+<div id="toastWrap"></div>
 
 <div class="topbar">
   <div class="logo">🧠 科研总助 Agent · Demo</div>
@@ -314,11 +329,11 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
         <span class="title" id="readerTitle">—</span>
       </div>
       <div class="right">
-        <button onclick="alert('中英对照切换：原文 + 译文内联显示，术语表保证全文一致。当前为 Demo 演示。')">中/EN</button>
+        <button onclick="toggleTranslation()">中/EN</button>
         <button onclick="openMeetingPanel()">📢 组会</button>
         <button onclick="openReproduce()">🔬 复现</button>
-        <button onclick="alert('笔记面板已在右侧，划选句子后可写笔记，支持版本链。当前为 Demo 演示。')">📝 笔记</button>
-        <button onclick="alert('桥接服务：http://127.0.0.1:8787，用于页面数据回写。当前为 Demo 演示。')">🔗 桥接</button>
+        <button onclick="openNoteModal(currentPid)">📝 笔记</button>
+        <button class="todo" title="未实现：页面数据回写桥接服务" onclick="notImplemented('桥接服务（页面数据回写）')">🔗 桥接</button>
       </div>
     </div>
 
@@ -334,13 +349,13 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
           <div class="pid">¶2 · 3. 方法</div>
           <div class="text">We use BERT as the encoder and a dense vector index for retrieval. The retriever is trained jointly with the generator.</div>
           <div class="translation">我们使用 BERT 作为编码器，用稠密向量索引做检索。检索器与生成器联合训练。</div>
-          <div class="para-actions"><button onclick="openLookup('BERT')">❓ 查词</button><button onclick="openNoteModal(2)">📝 笔记</button><button onclick="alert('翻译：将本段加入翻译队列，术语表保证全文一致。当前为 Demo 演示。')">译</button></div>
+          <div class="para-actions"><button onclick="openLookup('BERT')">❓ 查词</button><button onclick="openNoteModal(2)">📝 笔记</button><button class="todo" title="未实现：PRD 9.7 段落翻译（P1）" onclick="notImplemented('段落翻译（含术语表一致）', 'PRD 9.7 · P1')">译</button></div>
         </div>
         <div class="para" data-pid="3">
           <div class="pid">¶3 · 4. 实验</div>
           <div class="text">We evaluate on three tasks: open-domain QA, abstractive QA, and Jeopardy question generation.</div>
           <div class="translation">我们在三个任务上评估：开放域问答、摘要式问答、Jeopardy 问题生成。</div>
-          <div class="para-actions"><button onclick="openLookup('开放域问答')">❓ 查词</button><button onclick="openNoteModal(3)">📝 笔记</button><button onclick="alert('翻译：将本段加入翻译队列，术语表保证全文一致。当前为 Demo 演示。')">译</button></div>
+          <div class="para-actions"><button onclick="openLookup('开放域问答')">❓ 查词</button><button onclick="openNoteModal(3)">📝 笔记</button><button class="todo" title="未实现：PRD 9.7 段落翻译（P1）" onclick="notImplemented('段落翻译（含术语表一致）', 'PRD 9.7 · P1')">译</button></div>
         </div>
       </div>
       <div class="notes-panel">
@@ -478,8 +493,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
     <div id="reproduceBody"></div>
 
     <div style="margin-top:16px;">
-      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;margin-right:8px;" onclick="alert('导出：Markdown / CSV 格式。当前为 Demo 演示。')">⇪ 导出清单</button>
-      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;" onclick="alert('已复制到剪贴板（Demo）')">📋 复制清单</button>
+      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;margin-right:8px;" onclick="exportReproduce()">⇪ 导出清单</button>
+      <button class="add-doc-btn" style="width:auto;display:inline;padding:6px 16px;" onclick="copyReproduce()">📋 复制清单</button>
     </div>
   </div>
 </div>
@@ -491,8 +506,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
     <h2>⚙️ 设置</h2>
     <div class="group"><div class="group-title">用户（V2 本地多用户标识）</div>
       <div class="row"><span class="label">当前用户</span><span class="value">默认用户</span></div>
-      <div class="row"><span class="label">切换用户</span><button onclick="alert('切换后工作台/笔记/知识库全部刷新为目标用户数据（Demo）')">切换</button></div>
-      <div class="row"><span class="label">新建用户</span><button onclick="alert('已创建本地用户（Demo），数据目录独立')">新建</button></div>
+      <div class="row"><span class="label">切换用户</span><button class="todo" title="未实现：PRD 9.21 本地多用户标识" onclick="notImplemented('切换用户（本地多用户标识）', 'PRD 9.21 · P1')">切换</button></div>
+      <div class="row"><span class="label">新建用户</span><button class="todo" title="未实现：PRD 9.21 本地多用户标识" onclick="notImplemented('新建本地用户（数据目录独立）', 'PRD 9.21 · P1')">新建</button></div>
     </div>
     <div class="group"><div class="group-title">API</div>
       <div class="row"><span class="label">Provider / Model</span><span class="value">OpenAI 兼容 · gpt-4o-mini</span></div>
@@ -500,7 +515,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
       <div class="row"><span class="label">超预算行为</span><span class="value">自动翻译停止，页面黄条提示，不静默</span></div>
     </div>
     <div class="group"><div class="group-title">数据</div>
-      <div class="row"><span class="label">导出 / 备份 / 清除</span><span><button onclick="alert('导出：Markdown / CSV 格式。当前为 Demo 演示。')">导出</button> <button onclick="alert('备份：将本地数据打包保存。当前为 Demo 演示。')">备份</button> <button onclick="clearReadingHistory()">清除</button></span></div>
+      <div class="row"><span class="label">导出 / 备份 / 清除</span><span><button class="todo" title="未实现：全量数据导出" onclick="notImplemented('全量数据导出（Markdown / CSV）')">导出</button> <button class="todo" title="未实现：本地数据备份" onclick="notImplemented('本地数据备份')">备份</button> <button onclick="clearReadingHistory()">清除</button></span></div>
       <div class="row"><span class="label">🧹 回收站（软删除）</span><button onclick="showDeleted()">查看已删除文献</button></div>
     </div>
     <div class="group"><div class="group-title">关于</div>
@@ -568,7 +583,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
     </div>
     <div class="modal-actions">
       <button onclick="closeModal('meetingMask')">关闭</button>
-      <button class="primary" onclick="alert('已复制讲稿（Demo）')">复制讲稿</button>
+      <button class="primary" onclick="copyMeetingTalk()">复制讲稿</button>
     </div>
   </div>
 </div>
@@ -724,6 +739,90 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 </div>
 
 <script>
+
+/* ================= 页面内轻提示：替代 alert =================
+   原生 alert 在内嵌预览 / 部分浏览器会被直接屏蔽，点了完全没反应。
+   所有提示统一走这里；类型按文本自动判断，历史调用无需改参数。 */
+function toast(msg, type){
+  try{
+    var s = String(msg == null ? '' : msg);
+    if(!type){
+      if(/失败|错误|无法|超时|未连接|请求异常/.test(s)) type = 'error';
+      else if(/✅|已复制|已恢复|已收藏|已标记|已清除|已创建|已导出/.test(s)) type = 'success';
+      else type = 'info';
+    }
+    var wrap = document.getElementById('toastWrap');
+    if(!wrap){ console.log('[toast]', s); return; }
+    var el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = s;
+    wrap.appendChild(el);
+    var life = (type === 'error') ? 4500 : 2600;
+    setTimeout(function(){
+      el.style.transition = 'opacity .25s';
+      el.style.opacity = '0';
+      setTimeout(function(){ el.remove(); }, 260);
+    }, life);
+  }catch(e){ console.log('[toast-fallback]', msg); }
+}
+
+/* 未实现的功能：点了如实说明，不假装能用 */
+function notImplemented(what, prd){
+  toast('⚠️ ' + what + ' 尚未实现' + (prd ? '（' + prd + '）' : ''), 'warn');
+}
+
+/* ---- 中英对照切换（阅读页「中/EN」）---- */
+function toggleTranslation(){
+  var c = document.getElementById('readerContent');
+  if(!c) return toast('请先打开一篇文献', 'warn');
+  if(!c.querySelectorAll('.translation').length){
+    return notImplemented('段落译文', 'PRD 9.7 翻译 · P1');
+  }
+  c.classList.toggle('hide-translation');
+  toast(c.classList.contains('hide-translation') ? '已隐藏译文（仅原文）' : '已显示译文（中英对照）');
+}
+
+/* ---- 复现清单：复制 / 导出 ---- */
+function reproText(){
+  var nameEl = document.getElementById('reproduceDocName');
+  var bodyEl = document.getElementById('reproduceBody');
+  var name = nameEl ? nameEl.innerText : '';
+  var body = bodyEl ? bodyEl.innerText : '';
+  return (name + '\n\n' + body).trim();
+}
+function copyReproduce(){
+  var t = reproText();
+  if(!t) return toast('复现清单为空，无法复制', 'warn');
+  if(!navigator.clipboard) return toast('当前环境不支持剪贴板，请手动选中', 'error');
+  navigator.clipboard.writeText(t)
+    .then(function(){ toast('已复制复现清单 ✅', 'success'); })
+    .catch(function(){ toast('复制失败，请手动选中', 'error'); });
+}
+function exportReproduce(){
+  var t = reproText();
+  if(!t) return toast('复现清单为空，无法导出', 'warn');
+  var blob = new Blob([t], {type: 'text/markdown;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '复现清单.md';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  toast('已导出 复现清单.md ✅', 'success');
+}
+
+/* ---- 组会：复制讲稿 ---- */
+function copyMeetingTalk(){
+  var t = ['mcTalk1','mcTalk2','mcTalk3'].map(function(id){
+    var el = document.getElementById(id);
+    return el ? el.innerText : '';
+  }).filter(function(s){ return s && s !== '—'; }).join('\n');
+  if(!t) return toast('讲稿为空，请先选一篇文献', 'warn');
+  if(!navigator.clipboard) return toast('当前环境不支持剪贴板，请手动选中', 'error');
+  navigator.clipboard.writeText(t)
+    .then(function(){ toast('已复制讲稿 ✅', 'success'); })
+    .catch(function(){ toast('复制失败，请手动选中', 'error'); });
+}
+
 let currentDocId = 'lit_001';
 // 真实阅读进度（供侧栏「继续阅读」用，避免写死成不存在的文献）
 let LAST_READ = null;
@@ -798,13 +897,13 @@ function showPage(name){
 document.querySelectorAll('.topbar .nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 function openLastReader(){
   const d = docById(currentDocId) || activeDocs()[0];
-  if(!d){ alert('还没有文献，请先上传（或启动后端服务）。'); return; }
+  if(!d){ toast('还没有文献，请先上传（或启动后端服务）。'); return; }
   openReader(d.id);
 }
 // 复现页入口：只挂在阅读页顶部，不进主导航（复现必须绑定具体文献，全局入口没有意义）
 async function openReproduce(){
   const d = docById(currentDocId) || activeDocs()[0];
-  if(!d){ alert('还没有文献，请先上传（或启动后端服务）。'); return; }
+  if(!d){ toast('还没有文献，请先上传（或启动后端服务）。'); return; }
   currentDocId = d.id;
   // 必须先拉详情拿 fields：列表接口不带 fields，
   // 否则下面会把「还没加载」误报成「论文中未提及」——那是假的未提及。
@@ -859,7 +958,7 @@ async function clearReadingHistory(){
     danger: true
   });
   if(!ok) return;
-  alert('已清除');
+  toast('已清除');
 }
 
 // ============ 组会面板 ============
@@ -933,7 +1032,7 @@ async function cbSend(){
 
   // 没打开任何文献时不许问
   if(!currentDocId){
-    alert('请先从工作台打开一篇文献，再用球球提问。');
+    toast('请先从工作台打开一篇文献，再用球球提问。');
     return;
   }
 
@@ -1042,7 +1141,7 @@ async function toggleStatus(id){
     renderDocList();
     renderTagFilter();
   }catch(err){
-    alert('更新状态失败：' + err.message);
+    toast('更新状态失败：' + err.message);
   }
 }
 async function softDelete(id){
@@ -1064,10 +1163,10 @@ async function softDelete(id){
       renderDocList();
       logMsg('a', `已软删除《${d.title}》。可到 设置 → 回收站 恢复。`);
     } else {
-      alert('删除失败：' + (data.detail || '未知错误'));
+      toast('删除失败：' + (data.detail || '未知错误'));
     }
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 async function showDeleted(){
@@ -1121,7 +1220,7 @@ async function showDeleted(){
       cb.addEventListener('change', updateDelSelCount);
     });
   } catch(err){
-    alert('加载回收站失败：' + err.message);
+    toast('加载回收站失败：' + err.message);
   }
 }
 
@@ -1148,7 +1247,7 @@ function updateDelSelCount(){
 // 批量恢复
 async function batchRestoreDeleted(btn){
   const checked = Array.from(document.querySelectorAll('#deletedList .del-check:checked'));
-  if(checked.length === 0){ alert('请先勾选要恢复的文献'); return; }
+  if(checked.length === 0){ toast('请先勾选要恢复的文献'); return; }
   if(!await askConfirm({ title: '恢复文献', message: `恢复选中的 ${checked.length} 篇文献？` })) return;
 
   btn.disabled = true;
@@ -1170,7 +1269,7 @@ async function batchRestoreDeleted(btn){
   document.querySelector('.modal-mask.active')?.remove();
   await showDeleted();
 
-  alert(`已恢复 ${ok} 篇${fail ? `，失败 ${fail} 篇` : ''}`);
+  toast(`已恢复 ${ok} 篇${fail ? `，失败 ${fail} 篇` : ''}`);
 }
 
 async function restoreDoc(id, btn){
@@ -1182,10 +1281,10 @@ async function restoreDoc(id, btn){
       btn.closest('.modal-mask').remove();
       showDeleted();
     } else {
-      alert('恢复失败：' + (data.detail || '未知错误'));
+      toast('恢复失败：' + (data.detail || '未知错误'));
     }
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 
@@ -1205,10 +1304,10 @@ async function purgeDoc(id, btn){
       btn.closest('.modal-mask').remove();
       showDeleted();
     } else {
-      alert('彻底删除失败：' + (data.detail || '未知错误'));
+      toast('彻底删除失败：' + (data.detail || '未知错误'));
     }
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 let qaScope=[];
@@ -1359,7 +1458,7 @@ function logMsg(cls,html,extra=''){
 function copyMsg(id){
   const el = document.getElementById(id);
   const body = el.querySelector('.msg-body')?.innerText || '';
-  navigator.clipboard.writeText(body).then(()=>{alert('已复制到剪贴板');}).catch(()=>{alert('复制失败，请手动选中');});
+  navigator.clipboard.writeText(body).then(()=>{toast('已复制到剪贴板');}).catch(()=>{toast('复制失败，请手动选中');});
 }
 async function delMsg(id){
   const el = document.getElementById(id);
@@ -1372,7 +1471,7 @@ async function delMsg(id){
       okText: '一并删除'
     });
     el.remove();
-    alert(also ? '已删除问答历史 + 关联知识条目。' : '已删除问答历史，知识条目保留。');
+    toast(also ? '已删除问答历史 + 关联知识条目。' : '已删除问答历史，知识条目保留。');
   } else {
     const ok = await askConfirm({ title: '删除问答', message: '删除这条对话？', okText: '删除', danger: true });
     if(ok) el.remove();
@@ -1482,7 +1581,7 @@ async function projAsk(){
   const scope = (proj && proj.docs) ? proj.docs.slice() : [];
 
   if(scope.length === 0){
-    alert('项目内还没有文献，请先从总库托入。');
+    toast('项目内还没有文献，请先从总库托入。');
     return;
   }
 
@@ -1582,7 +1681,7 @@ document.querySelectorAll('#noteChoiceWrap .radio-row').forEach(r=>r.onclick=()=
   document.querySelectorAll('#noteChoiceWrap .radio-row').forEach(x=>x.classList.remove('sel'));r.classList.add('sel');
 });
 function openNoteFromSelection(){
-  if(!currentSelection){alert('请先选中一段原文，再点「📝 笔记」。');return;}
+  if(!currentSelection){toast('请先选中一段原文，再点「📝 笔记」。');return;}
   openNoteModal(currentPid,null,currentSelection);
 }
 function openNoteModal(pid,noteId,quote){
@@ -1606,14 +1705,14 @@ function openNoteModal(pid,noteId,quote){
 }
 async function saveNote(){
   const txt = document.getElementById('noteText').value.trim();
-  if(!txt) return alert('请输入内容');
+  if(!txt) return toast('请输入内容');
 
   const docId = currentDocId || 'lit_001';
 
   if(noteCtx.noteId){
     // 更新已有笔记：追加版本
     const n = DB.notes.find(x => x.id === noteCtx.noteId);
-    if(!n){ alert('笔记不存在'); return; }
+    if(!n){ toast('笔记不存在'); return; }
 
     const mode = document.querySelector('#noteChoiceWrap .radio-row.sel').dataset.v;
 
@@ -1632,7 +1731,7 @@ async function saveNote(){
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ versions: versions })
       });
-      if(!res.ok){ alert('保存失败'); return; }
+      if(!res.ok){ toast('保存失败'); return; }
     } else {
       // 新建关联笔记
       const res = await fetch(`${API_BASE}/api/notes`, {
@@ -1646,7 +1745,7 @@ async function saveNote(){
           related: n.id
         })
       });
-      if(!res.ok){ alert('保存失败'); return; }
+      if(!res.ok){ toast('保存失败'); return; }
     }
   } else {
     // 新建笔记
@@ -1660,7 +1759,7 @@ async function saveNote(){
         content: txt
       })
     });
-    if(!res.ok){ alert('保存失败'); return; }
+    if(!res.ok){ toast('保存失败'); return; }
   }
 
   closeModal('noteMask');
@@ -1690,12 +1789,12 @@ async function deleteVersion(noteId, v){
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ versions: versions })
     });
-    if(!res.ok){ alert('保存失败'); return; }
+    if(!res.ok){ toast('保存失败'); return; }
     await loadNotesFromAPI();
     renderReaderNotes();
     renderNotesOverview();
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 
@@ -1712,13 +1811,13 @@ async function deleteNote(noteId){
 
   try {
     const res = await fetch(`${API_BASE}/api/notes/${noteId}`, { method: 'DELETE' });
-    if(!res.ok){ alert('删除失败'); return; }
+    if(!res.ok){ toast('删除失败'); return; }
     await loadNotesFromAPI();
     renderReaderNotes();
     renderNotesOverview();
     renderDocList();
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 async function noteToKB(noteId){
@@ -1726,7 +1825,7 @@ async function noteToKB(noteId){
   if(!n) return;
   const act = (n.versions || []).filter(v => v.status === 'active');
   const claim = act.length ? act.at(-1).c : '';
-  if(!claim){ alert('这条笔记没有内容，无法收藏。'); return; }
+  if(!claim){ toast('这条笔记没有内容，无法收藏。'); return; }
   try{
     const res = await fetch(`${API_BASE}/api/knowledge`, {
       method: 'POST',
@@ -1744,8 +1843,8 @@ async function noteToKB(noteId){
     if(!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
     await loadKnowledgeFromAPI();
     renderKB(); renderDocList();
-    alert('笔记已升级为知识单元 ✅ 知识库里可点「跳回原文」。');
-  }catch(err){ alert('收藏失败：' + err.message); }
+    toast('笔记已升级为知识单元 ✅ 知识库里可点「跳回原文」。');
+  }catch(err){ toast('收藏失败：' + err.message); }
 }
 function renderReaderNotes(){
   const wrap = document.getElementById('readerNotes');
@@ -1819,7 +1918,7 @@ let lookupCur=null;
 // 查词：用真正选中的文字，不再写死某个术语
 function openLookupSel(){
   const sel = (window.getSelection()?.toString() || '').trim();
-  if(!sel){ alert('请先选中一个术语或模型名，再点「查词」。'); return; }
+  if(!sel){ toast('请先选中一个术语或模型名，再点「查词」。'); return; }
   openLookup(sel);
 }
 function openLookup(term){
@@ -1834,7 +1933,7 @@ function openLookup(term){
 async function collectTerm(){
   if(!lookupCur) return;
   const d = cardData[lookupCur];
-  if(!d) return alert('未找到的内容无法收藏为知识（不编造）。');
+  if(!d) return toast('未找到的内容无法收藏为知识（不编造）。');
   try{
     const res = await fetch(`${API_BASE}/api/knowledge`, {
       method: 'POST',
@@ -1846,8 +1945,8 @@ async function collectTerm(){
     await loadKnowledgeFromAPI();
     renderKB(); renderDocList();
     closeModal('lookupMask');
-    alert('已收藏为知识 ✅');
-  }catch(err){ alert('收藏失败：' + err.message); }
+    toast('已收藏为知识 ✅');
+  }catch(err){ toast('收藏失败：' + err.message); }
 }
 
 // 阅读页动态渲染
@@ -1987,7 +2086,7 @@ function renderReader(){
         <div class="para-actions">
           <button onclick="openLookupSel()">❓ 查词</button>
           <button onclick="openNoteModal(${pid})">📝 笔记</button>
-          <button onclick="alert('翻译：将本段加入翻译队列。')">译</button>
+          <button onclick="toast('翻译：将本段加入翻译队列。')">译</button>
         </div>
       </div>
     `;
@@ -2039,14 +2138,14 @@ function _markQuote(textEl, quote){
 async function jumpToQuote(docId, n){
   const c = SUMMARY_CITES[n - 1];
   if(!c) return;
-  if(!c.pid){ alert('该引用未定位到段落（pid 为空）'); return; }
+  if(!c.pid){ toast('该引用未定位到段落（pid 为空）'); return; }
 
   await openReader(docId);
   showPage('reader');
 
   setTimeout(() => {
     const para = document.querySelector(`#readerContent .para[data-pid="${c.pid}"]`);
-    if(!para){ alert(`¶${c.pid} 不在当前正文中（本文共 ${(docById(docId)?.paragraphs || []).length} 段）`); return; }
+    if(!para){ toast(`¶${c.pid} 不在当前正文中（本文共 ${(docById(docId)?.paragraphs || []).length} 段）`); return; }
 
     // 清掉上一次的高亮
     document.querySelectorAll('#readerContent mark.quote-hit').forEach(m => {
@@ -2065,7 +2164,7 @@ async function jumpToQuote(docId, n){
       // quote 逐字匹配不上（段落重建过）→ 如实说，只定位到段落，不假装命中
       para.style.background = '#ffece8';
       setTimeout(() => { para.style.background = ''; }, 2000);
-      alert(`已定位到 ¶${c.pid}，但该引文在当前段落中未逐字命中（段落可能已重建）。\n建议在速读页重跑深解析。`);
+      toast(`已定位到 ¶${c.pid}，但该引文在当前段落中未逐字命中（段落可能已重建）。\n建议在速读页重跑深解析。`);
     }
   }, 150);
 }
@@ -2437,10 +2536,10 @@ function toggleReviewManual(id, checked){
 
 async function submitNewReview(){
   const topic = document.getElementById('reviewTopicInput').value.trim();
-  if(!topic){ alert('请输入综述主题'); return; }
+  if(!topic){ toast('请输入综述主题'); return; }
 
   if(!reviewScopeChoice){
-    alert('请先选择范围');
+    toast('请先选择范围');
     return;
   }
   // 范围解析
@@ -2457,7 +2556,7 @@ async function submitNewReview(){
     projectId = reviewScopeChoice;
   }
 
-  if(scope.length === 0){ alert('范围内没有文献'); return; }
+  if(scope.length === 0){ toast('范围内没有文献'); return; }
 
   // 亮牌确认
   const ok = await askConfirm({
@@ -2492,7 +2591,7 @@ async function submitNewReview(){
     document.getElementById(loadingId)?.remove();
 
     if(!res.ok){
-      alert('生成失败：' + (data.detail || '未知错误'));
+      toast('生成失败：' + (data.detail || '未知错误'));
       return;
     }
 
@@ -2501,11 +2600,11 @@ async function submitNewReview(){
       renderProjectReviews();
       openReviewDetail(data.id);
     } else {
-      alert('创建失败：' + (data.detail || '未知错误'));
+      toast('创建失败：' + (data.detail || '未知错误'));
     }
   } catch(err){
     document.getElementById(loadingId)?.remove();
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 
@@ -2552,7 +2651,7 @@ async function editReview(id){
   try{
     const res = await fetch(`${API_BASE}/api/reviews/${id}`);
     const r = await res.json();
-    if(!r.id){ alert('综述不存在'); return; }
+    if(!r.id){ toast('综述不存在'); return; }
     _editReviewId = id;
     const inp = document.getElementById('topicMaskInput');
     inp.value = r.topic || '';
@@ -2560,7 +2659,7 @@ async function editReview(id){
     err.textContent = ''; err.style.display = 'none';
     document.getElementById('topicMask').classList.add('active');
     setTimeout(() => { inp.focus(); inp.select(); }, 50);
-  }catch(err){ alert('加载综述失败：' + err.message); }
+  }catch(err){ toast('加载综述失败：' + err.message); }
 }
 async function submitTopicMask(){
   const errEl = document.getElementById('topicMaskErr');
@@ -2600,10 +2699,10 @@ async function softDeleteReview(id){
       renderProjectReviews();
 
     } else {
-      alert('删除失败：' + (data.detail || '未知错误'));
+      toast('删除失败：' + (data.detail || '未知错误'));
     }
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 
@@ -2613,7 +2712,7 @@ async function openReviewDetail(id){
   try {
     const res = await fetch(`${API_BASE}/api/reviews/${id}`);
     const r = await res.json();
-    if(!r.id){ alert('综述不存在'); return; }
+    if(!r.id){ toast('综述不存在'); return; }
     window.__currentReviewId = r.id;
     window.__currentReviewTopic = r.topic;
         const payload = r.points || {};
@@ -2703,7 +2802,7 @@ async function openReviewDetail(id){
     mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
     document.body.appendChild(mask);
   } catch(err){
-    alert('加载详情失败：' + err.message);
+    toast('加载详情失败：' + err.message);
   }
 }
 // ============ 综述详情：最小化 / 恢复 ============
@@ -2786,21 +2885,21 @@ async function markReviewReviewed(id, btn){
       btn.closest('.modal-mask').remove();
       renderReviewList();
       renderProjectReviews();
-      alert('已标记为已审阅');
+      toast('已标记为已审阅');
     }
   } catch(err){
-    alert('请求失败：' + err.message);
+    toast('请求失败：' + err.message);
   }
 }
 async function openQuotePreview(docId, pid){
-  if(!docId || !pid){ alert('该引用未定位到段落（pid 为空）'); return; }
+  if(!docId || !pid){ toast('该引用未定位到段落（pid 为空）'); return; }
 
   try {
     const res = await fetch(`${API_BASE}/api/docs/${docId}`);
     const doc = await res.json();
     const paras = doc.paragraphs || [];
     if(pid < 1 || pid > paras.length){
-      alert(`段落号 ¶${pid} 超出范围（本文共 ${paras.length} 段）`);
+      toast(`段落号 ¶${pid} 超出范围（本文共 ${paras.length} 段）`);
       return;
     }
 
@@ -2827,11 +2926,11 @@ async function openQuotePreview(docId, pid){
     mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
     document.body.appendChild(mask);
   } catch(err){
-    alert('加载失败：' + err.message);
+    toast('加载失败：' + err.message);
   }
 }
 // ============ 对比（真实数据，来自各篇的深解析结果）============
-// 注意：全程不用 alert() —— 内嵌预览会屏蔽原生弹窗，点了会毫无反应
+// 注意：全程不用 toast() —— 内嵌预览会屏蔽原生弹窗，点了会毫无反应
 function showCmpErr(msg){
   const e = document.getElementById('cmpPickErr');
   if(e){ e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; }
@@ -3041,7 +3140,7 @@ async function delKB(kid){
     if(!res.ok) throw new Error(((await res.json()).detail) || ('HTTP ' + res.status));
     await loadKnowledgeFromAPI();
     renderKB(); renderDocList();
-  }catch(err){ alert('删除失败：' + err.message); }
+  }catch(err){ toast('删除失败：' + err.message); }
 }
 
 // ---- 新建 / 编辑弹窗（页面内，不用 prompt）----
@@ -3080,7 +3179,7 @@ function openKbMask(payload){
 }
 async function editKB(kid){
   const k = DB.knowledge.find(x => x.id === kid);
-  if(!k){ alert('知识条目不存在'); return; }
+  if(!k){ toast('知识条目不存在'); return; }
   _kbEditing = kid;
   _kbPayload = {
     source_type: k.source_type,
@@ -3269,7 +3368,7 @@ async function _doRenameProject(name){
 
 async function deleteCurrentProject(){
   const p = curProject();
-  if(!p){ alert('当前没有选中的项目，先在左栏点一个项目。'); return; }
+  if(!p){ toast('当前没有选中的项目，先在左栏点一个项目。'); return; }
   const ok = await askConfirm({
     title: '删除项目',
     message: `彻底删除项目《${p.name}》？\n\n· 只解绑项目与文献的关系\n· 文献本身仍在总库中，不会丢\n· 此操作不可恢复`,
@@ -3285,7 +3384,7 @@ async function deleteCurrentProject(){
     await loadProjects();
     renderProjectDocs();
     renderProjectReviews();
-  }catch(err){ alert('删除失败：' + err.message); }
+  }catch(err){ toast('删除失败：' + err.message); }
 }
 
 // ============ 项目页 ============
@@ -3345,9 +3444,9 @@ function openAddDoc(){
 }
 async function confirmAddDoc(){
   const checked=document.querySelectorAll('#libraryList input:checked');
-  if(!checked.length)return alert('请至少勾选一篇');
+  if(!checked.length)return toast('请至少勾选一篇');
   const p=curProject();
-  if(!p)return alert('还没有项目，请先新建项目。');
+  if(!p)return toast('还没有项目，请先新建项目。');
   const skip=[];
   checked.forEach(cb=>{
     const id=cb.value;
@@ -3357,7 +3456,7 @@ async function confirmAddDoc(){
   await persistProjectDocs();
   renderWbProjectList();
   renderProjectDocs();
-  if(skip.length)alert('以下文献已在项目中，跳过：\n'+skip.map(id=>'《'+(docById(id)?.title||id)+'》').join('\n'));
+  if(skip.length)toast('以下文献已在项目中，跳过：\n'+skip.map(id=>'《'+(docById(id)?.title||id)+'》').join('\n'));
   closeModal('addDocMask');
 }
 async function removeDoc(btn,id){
